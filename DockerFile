@@ -8,4 +8,4 @@ WORKDIR /app
 COPY target/*.jar app.jar
 
 # Run the jar
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "WeWill-1.0-SNAPSHOT.jar"]
