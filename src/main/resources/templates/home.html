@@ -14,6 +14,31 @@
             background-color: #f5f8fa;
         }
 
+        /* 🌈 Animated flowing ribbon header */
+        .ribbon-header {
+            position: relative;
+            background: linear-gradient(270deg, #1e3c72, #2a5298, #1e3c72);
+            background-size: 600% 600%;
+            animation: moveGradient 10s ease infinite;
+            padding: 1.5rem;
+            color: white;
+            text-align: center;
+            border-bottom: 4px solid #0d6efd;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .ribbon-header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        @keyframes moveGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
         .login-card {
             border: none;
             border-radius: 1rem;
@@ -56,9 +81,14 @@
         }
     </style>
 </head>
-<body class="d-flex flex-column align-items-center py-5">
+<body class="d-flex flex-column align-items-center py-0">
 
-<div class="container" style="max-width: 1000px;">
+<!-- 🎉 Animated Ribbon Banner -->
+<div class="ribbon-header w-100">
+    <h1>🎯 </h1>
+</div>
+
+<div class="container mt-5" style="max-width: 1000px;">
     <!-- 🔐 Login Section -->
     <div class="login-card mb-4" style="max-width: 420px; margin: 0 auto;">
         <h3 class="text-center mb-3">Project Temasek KKR</h3>
@@ -76,10 +106,9 @@
         <div class="d-grid mt-3">
             <button type="button" class="btn btn-outline-primary" onclick="startWebSocket()">Start WebSocket Connection</button>
         </div>
-
     </div>
 
-
+    <!-- 📡 Log Viewer Section -->
     <!-- 📡 Log Viewer Section -->
     <div class="login-card">
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-3">
@@ -90,6 +119,23 @@
         <h5 class="text-center mb-3">Live Logs</h5>
         <div id="logs-container">Connecting to backend...</div>
         <div class="text-center status-bar" id="log-status">🔄 Waiting for connection...</div>
+
+        <!-- 🔐 Token Display Section -->
+        <div class="mt-4">
+            <h5 class="text-center mb-3">🔐 Current Access Tokens</h5>
+            <div class="alert alert-primary">
+                <strong>Access Token:</strong>
+                <pre id="accessToken" class="mb-0 text-wrap small text-break"></pre>
+            </div>
+            <div class="alert alert-success">
+                <strong>Public Access Token:</strong>
+                <pre id="publicAccessToken" class="mb-0 text-wrap small text-break"></pre>
+            </div>
+            <div class="alert alert-warning">
+                <strong>Read Access Token:</strong>
+                <pre id="readAccessToken" class="mb-0 text-wrap small text-break"></pre>
+            </div>
+        </div>
     </div>
 
 
@@ -100,7 +146,7 @@
     let logContainer = document.getElementById("logs-container");
     let logStatus = document.getElementById("log-status");
     let logSearch = document.getElementById("log-search");
-    let allLogs = []; // Store logs for filtering/export
+    let allLogs = [];
     let socket;
 
     function connectLogStream() {
@@ -153,15 +199,14 @@
     logSearch.addEventListener("input", filterLogs);
     connectLogStream();
 </script>
+
 <script>
-    // 🔁 Check token validity on load
     window.addEventListener('DOMContentLoaded', () => {
         fetch('/token-status')
             .then(res => res.json())
             .then(data => {
                 if (data.expired) {
-                    const alertBox = document.getElementById('token-alert');
-                    alertBox.classList.remove('d-none');
+                    document.getElementById('token-alert').classList.remove('d-none');
                 }
             })
             .catch(err => console.error('❌ Failed to fetch token status', err));
@@ -176,6 +221,27 @@
             .catch(err => alert("❌ Failed to start WebSocket: " + err));
     }
 </script>
+
+<script>
+    function loadTokens() {
+        fetch('/tokens')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('accessToken').innerText = data.accessToken || '❌ Not available';
+                document.getElementById('publicAccessToken').innerText = data.publicAccessToken || '❌ Not available';
+                document.getElementById('readAccessToken').innerText = data.readAccessToken || '❌ Not available';
+            })
+            .catch(err => {
+                document.getElementById('accessToken').innerText = '❌ Error fetching';
+                document.getElementById('publicAccessToken').innerText = '❌ Error fetching';
+                document.getElementById('readAccessToken').innerText = '❌ Error fetching';
+                console.error("Token fetch error:", err);
+            });
+    }
+
+    window.addEventListener('DOMContentLoaded', loadTokens);
+</script>
+
 
 
 </body>

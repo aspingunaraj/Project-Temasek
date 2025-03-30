@@ -33,6 +33,17 @@ public class Authentication {
         return "home";
     }
 
+    @GetMapping("/tokens")
+    @ResponseBody
+    public Map<String, String> getTokens() {
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("accessToken", Main.accessToken);
+        tokens.put("publicAccessToken", Main.publicAccessToken);
+        tokens.put("readAccessToken", Main.readAccessToken);
+        return tokens;
+    }
+
+
     @GetMapping({"/token", "/token/"})
     public String tokenPage(
             @RequestParam("requestToken") String requestToken,
