@@ -1,8 +1,25 @@
-# Use official OpenJDK image as base
-FROM openjdk:17-jdk-slim
+# Stage 1: Build with Maven
+FROM maven:3.9.4-eclipse-temurin-17 as builder
 
 WORKDIR /app
 
-COPY target/WeWill-1.0-SNAPSHOT.jar WeWill-1.0-SNAPSHOT.jar
+# Copy Maven files and download dependencies (cache step)
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
-ENTRYPOINT ["java", "-jar", "WeWill-1.0-SNAPSHOT.jar"]
+# Copy source code
+COPY src ./src
+
+# Build the project
+RUN mvn clean package -DskipTests
+
+# Stage 2: Run the jar
+FROM eclipse-temurin:17-jdk-jammy
+
+WORKDIR /app
+
+# Copy the jar from builder stage
+COPY --from=builder /app/target/*.jar app.jar
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]
