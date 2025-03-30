@@ -84,15 +84,21 @@ public class DepthPacketStrategies {
     }
 
     private static Signal strategy4(List<Tick> ticks) {
-        int up = 0, down = 0;
-        for (int i = 1; i < ticks.size(); i++) {
-            float prev = ticks.get(i - 1).getLastTradedPrice();
-            float curr = ticks.get(i).getLastTradedPrice();
-            if (curr > prev) up++;
-            else if (curr < prev) down++;
+        int momentumPositive = 0, momentumNegative = 0;
+        int window = 5;
+
+        for (int i = window; i < ticks.size(); i++) {
+            float past = ticks.get(i - window).getLastTradedPrice();
+            float now = ticks.get(i).getLastTradedPrice();
+            if (now > past) momentumPositive++;
+            else if (now < past) momentumNegative++;
         }
-        return up >= 7 ? Signal.BUY : (down >= 7 ? Signal.SELL : Signal.HOLD);
+
+        if (momentumPositive > momentumNegative * 1.5) return Signal.BUY;
+        if (momentumNegative > momentumPositive * 1.5) return Signal.SELL;
+        return Signal.HOLD;
     }
+
 
     private static Signal strategy5(List<Tick> ticks) {
         double bidPressure = 0, askPressure = 0;
@@ -106,25 +112,36 @@ public class DepthPacketStrategies {
     }
 
     private static Signal strategy6(List<Tick> ticks) {
-        int bidDrops = 0, askDrops = 0;
-        for (int i = 1; i < ticks.size(); i++) {
-            List<DepthPacket> prev = ticks.get(i - 1).getMbpRowPacket();
+        int dropCountBid = 0, dropCountAsk = 0;
+        int window = 5;
+
+        for (int i = window; i < ticks.size(); i++) {
+            List<DepthPacket> prev = ticks.get(i - window).getMbpRowPacket();
             List<DepthPacket> curr = ticks.get(i).getMbpRowPacket();
             if (prev.isEmpty() || curr.isEmpty()) continue;
 
-            DepthPacket prevTop = prev.get(0), currTop = curr.get(0);
-            if (currTop.getBuyQuantity() < prevTop.getBuyQuantity() * 0.6) bidDrops++;
-            if (currTop.getSellQuantity() < prevTop.getSellQuantity() * 0.6) askDrops++;
+            double avgPrevBid = prev.stream().mapToDouble(DepthPacket::getBuyQuantity).average().orElse(0);
+            double avgCurrBid = curr.stream().mapToDouble(DepthPacket::getBuyQuantity).average().orElse(0);
+            if (avgCurrBid < avgPrevBid * 0.5) dropCountBid++;
+
+            double avgPrevAsk = prev.stream().mapToDouble(DepthPacket::getSellQuantity).average().orElse(0);
+            double avgCurrAsk = curr.stream().mapToDouble(DepthPacket::getSellQuantity).average().orElse(0);
+            if (avgCurrAsk < avgPrevAsk * 0.5) dropCountAsk++;
         }
 
-        return askDrops >= 3 ? Signal.BUY : (bidDrops >= 3 ? Signal.SELL : Signal.HOLD);
+        if (dropCountAsk >= 5) return Signal.BUY;
+        if (dropCountBid >= 5) return Signal.SELL;
+        return Signal.HOLD;
     }
+
 
     // ------------------- NEW STRATEGIES ----------------------
 
     // Strategy 7: Order Flow Imbalance (OFI)
     private static Signal strategy7_OFI(List<Tick> ticks) {
-        double ofi = 0;
+        double smoothedOFI = 0;
+        double alpha = 0.2; // smoothing factor
+
         for (int i = 1; i < ticks.size(); i++) {
             List<DepthPacket> prev = ticks.get(i - 1).getMbpRowPacket();
             List<DepthPacket> curr = ticks.get(i).getMbpRowPacket();
@@ -136,29 +153,39 @@ public class DepthPacketStrategies {
             double buyChange = currTop.getBuyQuantity() - prevTop.getBuyQuantity();
             double sellChange = currTop.getSellQuantity() - prevTop.getSellQuantity();
 
-            ofi += (buyChange - sellChange);
+            double deltaOFI = buyChange - sellChange;
+            smoothedOFI = alpha * deltaOFI + (1 - alpha) * smoothedOFI;
         }
 
-        if (ofi > 0) return Signal.BUY;
-        if (ofi < 0) return Signal.SELL;
+        if (smoothedOFI > 10) return Signal.BUY;
+        if (smoothedOFI < -10) return Signal.SELL;
         return Signal.HOLD;
     }
 
+
     // Strategy 8: Convexity — book depth distribution
     private static Signal strategy8_Convexity(List<Tick> ticks) {
-        double bidConvexity = 0, askConvexity = 0;
+        double totalBidConvexity = 0, totalAskConvexity = 0;
+        int levelsCount = 0;
 
         for (Tick tick : ticks) {
             List<DepthPacket> levels = tick.getMbpRowPacket();
+            levelsCount = Math.max(levelsCount, levels.size());
             for (int i = 0; i < levels.size(); i++) {
-                double weight = Math.exp(-i); // exponential decay
-                bidConvexity += levels.get(i).getBuyQuantity() * weight;
-                askConvexity += levels.get(i).getSellQuantity() * weight;
+                double decay = Math.exp(-i);
+                totalBidConvexity += levels.get(i).getBuyQuantity() * decay;
+                totalAskConvexity += levels.get(i).getSellQuantity() * decay;
             }
         }
 
-        return thresholdSignal(bidConvexity, askConvexity, 1.2);
+        if (levelsCount == 0) return Signal.HOLD;
+
+        double normBid = totalBidConvexity / ticks.size();
+        double normAsk = totalAskConvexity / ticks.size();
+
+        return thresholdSignal(normBid, normAsk, 1.25);
     }
+
 
     // ------------------- Utility ----------------------
 
