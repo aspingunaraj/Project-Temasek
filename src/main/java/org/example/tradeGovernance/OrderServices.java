@@ -17,7 +17,7 @@ public class OrderServices {
     private static final String BRACKET_ORDER_URL = "https://developer.paytmmoney.com/orders/v1/place/bracket";
     private static final String NORMAL_ORDER_URL = "https://developer.paytmmoney.com/orders/v1/place/regular";
     private static final String CANCEL_ORDER_URL = "https://developer.paytmmoney.com/orders/v1/cancel/regular";
-    private static final String ORDER_BOOK_URL = "https://developer.paytmmoney.com/orders/v1/orderbook";
+    private static final String ORDER_BOOK_URL = "https://developer.paytmmoney.com/orders/v1/orders";
 
     private final RestTemplate restTemplate;
 
@@ -110,6 +110,7 @@ public class OrderServices {
                     entity,
                     OrderBookResponse.class
             );
+
 
             OrderBookResponse body = response.getBody();
             if (response.getStatusCode().is2xxSuccessful() && body != null) {
