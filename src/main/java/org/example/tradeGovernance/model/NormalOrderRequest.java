@@ -32,7 +32,7 @@ public class NormalOrderRequest {
     private String orderType;
 
     // 💰 Price (used for LMT orders)
-    private double price;
+    private Double price;
 
     // 🚨 Trigger price (used for SL or SLM orders)
     @JsonProperty("trigger_price")
@@ -48,7 +48,7 @@ public class NormalOrderRequest {
     // --- Constructor ---
     public NormalOrderRequest(String txnType, String exchange, String segment, String product,
                               String securityId, int quantity, String validity, String orderType,
-                              double price, Double triggerPrice, String source, String offMktFlag) {
+                              Double price, Double triggerPrice, String source, String offMktFlag) {
         this.txnType = txnType;
         this.exchange = exchange;
         this.segment = segment;
@@ -129,11 +129,11 @@ public class NormalOrderRequest {
         this.orderType = orderType;
     }
 
-    public double getPrice() {
+    public Double getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(Double price) {
         this.price = price;
     }
 

@@ -31,7 +31,7 @@ public class DepthPacketHistoryManager {
         tickHistory.putIfAbsent(securityId, new LinkedList<>());
         LinkedList<Tick> historyList = tickHistory.get(securityId);
 
-        if (historyList.size() == 200) {
+        if (historyList.size() == 15) {
             historyList.removeFirst(); // remove oldest
         }
 

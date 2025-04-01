@@ -43,14 +43,22 @@ public class BracketOrderManager {
         );
         orderServices.placeNormalOrder(entryOrder);
 
+        System.out.println("targetPecent" + targetPercent);
         // 🔹 2️⃣ Compute Target and SL prices
         double targetPrice = (actionType == TradeAnalysis.Action.BUY)
                 ? ltp * (1 + (targetPercent / 100))
                 : ltp * (1 - (targetPercent / 100));
 
+
+
+
         double stopLossPrice = (actionType == TradeAnalysis.Action.BUY)
                 ? ltp * (1 - (stopLossPercent / 100))
                 : ltp * (1 + (stopLossPercent / 100));
+
+        System.out.println("ltp" + ltp);
+        System.out.println("targetPrice" + targetPrice);
+        System.out.println("stopLoss" + stopLossPrice);
 
         // 🔹 3️⃣ Place Target Limit Order (No trigger price)
         NormalOrderRequest targetOrder = new NormalOrderRequest(
