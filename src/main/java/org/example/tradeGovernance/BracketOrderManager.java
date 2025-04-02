@@ -32,40 +32,93 @@ public class BracketOrderManager {
      * - Limit Target
      * - SL-M Stop Loss
      */
-    public void placeBracketOrder(String securityId, TradeAnalysis.Action actionType,float ltp) {
 
+    public void placeBracketOrder(String securityId, TradeAnalysis.Action actionType, float ltp) {
         String txnType = (actionType == TradeAnalysis.Action.BUY) ? "B" : "S";
 
-        // 🔹 1️⃣ Entry Market Order (No price or trigger required)
+        // 🔹 1️⃣ Place Entry Market Order
         NormalOrderRequest entryOrder = new NormalOrderRequest(
                 txnType, "NSE", "E", "I", securityId, 1,
                 "DAY", "MKT", 0.0, null, "N", "false"
         );
-        orderServices.placeNormalOrder(entryOrder);
 
-        // 🔹 2️⃣ Compute Target and SL prices
+        NormalOrderResponse entryResponse = orderServices.placeNormalOrder(entryOrder);
+        String entryOrderNo = (entryResponse != null) ? entryResponse.getData().getFirst().getOrderNo() : null;
+
+        if (entryOrderNo == null) {
+            System.err.println("❌ Entry order failed to place. Aborting bracket.");
+            return;
+        }
+
+        System.out.println("📥 Entry order placed. Order No: " + entryOrderNo);
+
+        // 🔄 Monitor Entry Status via displayStatus
+        Timer entryMonitor = new Timer();
+        entryMonitor.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                OrderBookResponse orderBook = Main.latestOrderBook;
+                if (orderBook == null || orderBook.getData() == null) return;
+
+                Optional<Order> matchingOrderOpt = orderBook.getData().stream()
+                        .filter(order -> entryOrderNo.equals(order.getOrderNo()))
+                        .findFirst();
+
+                if (matchingOrderOpt.isPresent()) {
+                    Order order = matchingOrderOpt.get();
+                    String status = order.getDisplayStatus();
+
+                    switch (status.toLowerCase()) {
+                        case "successful":
+                            System.out.println("✅ Entry order executed. Now placing exit orders...");
+                            placeExitOrders(securityId, actionType, ltp);
+                            monitorAndCancelCounterExit(securityId, actionType);
+                            entryMonitor.cancel();
+                            break;
+
+                        case "cancelled":
+                        case "rejected":
+                            System.err.println("❌ Entry order was " + status + ". Bracket process aborted.");
+                            entryMonitor.cancel();
+                            break;
+
+                        case "pending":
+                            System.out.println("⏳ Waiting for entry to execute... [Status: " + status + "]");
+                            break;
+
+                        default:
+                            System.out.println("❔ Unknown status for entry: " + status);
+                            break;
+                    }
+
+                } else {
+                    System.out.println("🔍 Entry order not found in order book. Retrying...");
+                }
+            }
+        }, 0, 1000);
+    }
+
+
+    private void placeExitOrders(String securityId, TradeAnalysis.Action actionType, float ltp) {
         double targetPrice = (actionType == TradeAnalysis.Action.BUY)
                 ? ltp * (1 + (targetPercent / 100))
                 : ltp * (1 - (targetPercent / 100));
-
-
-
 
         double stopLossPrice = (actionType == TradeAnalysis.Action.BUY)
                 ? ltp * (1 - (stopLossPercent / 100))
                 : ltp * (1 + (stopLossPercent / 100));
 
-        System.out.println("ltp" + ltp);
-        System.out.println("targetPrice" + targetPrice);
-        System.out.println("stopLoss" + stopLossPrice);
+        targetPrice = roundToNearest005(targetPrice);
+        stopLossPrice = roundToNearest005(stopLossPrice);
 
-        // 🔹 3️⃣ Place Target Limit Order (No trigger price)
+        System.out.println("🎯 Rounded Target: " + targetPrice);
+        System.out.println("🛑 Rounded Stop Loss: " + stopLossPrice);
+
         NormalOrderRequest targetOrder = new NormalOrderRequest(
                 (actionType == TradeAnalysis.Action.BUY) ? "S" : "B", "NSE", "E", "I",
                 securityId, 1, "DAY", "LMT", targetPrice, null, "N", "false"
         );
 
-        // 🔹 4️⃣ Place SL-M Stop Loss Order (Requires triggerPrice)
         NormalOrderRequest stopLossOrder = new NormalOrderRequest(
                 (actionType == TradeAnalysis.Action.BUY) ? "S" : "B", "NSE", "E", "I",
                 securityId, 1, "DAY", "SLM", 0.0, stopLossPrice, "N", "false"
@@ -73,10 +126,9 @@ public class BracketOrderManager {
 
         orderServices.placeNormalOrder(targetOrder);
         orderServices.placeNormalOrder(stopLossOrder);
-
-        // 🔄 5️⃣ Start Monitoring to detect if either order is executed
-        monitorAndCancelCounterExit(securityId, actionType);
     }
+
+
 
     /**
      * Monitors the order book every second to check if either the target or stop-loss order is filled.
@@ -159,6 +211,11 @@ public class BracketOrderManager {
         activeMonitors.remove(securityId);
         System.out.println("🛑 Monitor stopped for " + securityId);
     }
+
+    private double roundToNearest005(double price) {
+        return Math.round(price * 20) / 20.0;
+    }
+
 
     /**
      * Simulated LTP fetch — replace with live feed or market data APIs.

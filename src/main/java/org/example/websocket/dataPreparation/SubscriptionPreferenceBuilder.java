@@ -10,7 +10,7 @@ public class SubscriptionPreferenceBuilder {
 
     // ✅ List of scrip IDs to subscribe to — modify this as needed
     private static final List<String> scripIdsToSubscribe = List.of(
-            "3787","2475","14977","11630","5097","3499","18143"
+            "3787","2475"
     );
 
     /**
