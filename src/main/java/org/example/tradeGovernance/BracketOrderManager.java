@@ -32,8 +32,8 @@ public class BracketOrderManager {
      * - Limit Target
      * - SL-M Stop Loss
      */
-    public void placeBracketOrder(String securityId, TradeAnalysis.Action actionType) {
-        double ltp = simulateLTP(securityId);
+    public void placeBracketOrder(String securityId, TradeAnalysis.Action actionType,float ltp) {
+
         String txnType = (actionType == TradeAnalysis.Action.BUY) ? "B" : "S";
 
         // 🔹 1️⃣ Entry Market Order (No price or trigger required)
@@ -43,7 +43,6 @@ public class BracketOrderManager {
         );
         orderServices.placeNormalOrder(entryOrder);
 
-        System.out.println("targetPecent" + targetPercent);
         // 🔹 2️⃣ Compute Target and SL prices
         double targetPrice = (actionType == TradeAnalysis.Action.BUY)
                 ? ltp * (1 + (targetPercent / 100))
@@ -96,6 +95,7 @@ public class BracketOrderManager {
             @Override
             public void run() {
                 OrderBookResponse orderBook = Main.latestOrderBook;
+               System.out.println( "🛰️ Running Monitor for " + securityId);
 
                 if (orderBook == null || orderBook.getData() == null) return;
 
@@ -163,7 +163,4 @@ public class BracketOrderManager {
     /**
      * Simulated LTP fetch — replace with live feed or market data APIs.
      */
-    private double simulateLTP(String securityId) {
-        return 100 + Math.random() * 10;
-    }
 }

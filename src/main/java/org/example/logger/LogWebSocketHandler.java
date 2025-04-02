@@ -6,6 +6,8 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -36,17 +38,19 @@ public class LogWebSocketHandler extends TextWebSocketHandler {
      * Does NOT log to System.out to avoid infinite recursion.
      */
     public static void broadcast(String message) {
+        String timestamp = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+        String formattedMessage = "[" + timestamp + "] " + message;
+
         for (WebSocketSession session : sessions) {
             if (session.isOpen()) {
                 try {
-                    session.sendMessage(new TextMessage(message));
+                    session.sendMessage(new TextMessage(formattedMessage));
                 } catch (IOException e) {
-                    // We keep this as standard error for debugging
                     e.printStackTrace();
                 }
             }
         }
 
-        // ⚠️ Do NOT call System.out.println here to avoid recursion
+        // ⚠️ Avoid System.out.println here to prevent recursive logging
     }
 }

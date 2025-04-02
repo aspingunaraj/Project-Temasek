@@ -185,7 +185,7 @@ public class Authentication {
                     if ((action == TradeAnalysis.Action.BUY)||(action == TradeAnalysis.Action.SELL))
                     {
                         BracketOrderManager bracketOrderManager = new BracketOrderManager(0.5, 0.5);
-                        bracketOrderManager.placeBracketOrder(String.valueOf(tick.getSecurityId()), action);
+                        bracketOrderManager.placeBracketOrder(String.valueOf(tick.getSecurityId()), action,tick.getLastTradedPrice());
                     }
                 }
 
