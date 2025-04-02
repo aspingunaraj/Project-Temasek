@@ -43,7 +43,7 @@ public class BracketOrderManager {
         );
 
         NormalOrderResponse entryResponse = orderServices.placeNormalOrder(entryOrder);
-        String entryOrderNo = (entryResponse != null) ? entryResponse.getData().getFirst().getOrderNo() : null;
+        String entryOrderNo = (entryResponse != null) ? entryResponse.getData().get(0).getOrderNo() : null;
 
         if (entryOrderNo == null) {
             System.err.println("❌ Entry order failed to place. Aborting bracket.");
