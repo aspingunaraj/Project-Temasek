@@ -158,9 +158,9 @@ public class BracketOrderManager {
                 for (Order order : orderBook.getData()) {
                     if (!order.getSecurityId().equals(securityId)) continue;
 
-                    if (order.getOrderType().equals("LMT") && order.getStatus().startsWith("O")) {
+                    if (order.getOrderType().equals("LMT") && order.getDisplayStatus().equals("Successful")) {
                         targetOrder = order;
-                    } else if (order.getOrderType().equals("SLM") && order.getStatus().startsWith("O")) {
+                    } else if (order.getOrderType().equals("SLM") && order.getStatus().equals("Successful")) {
                         stopLossOrder = order;
                     }
                 }
@@ -189,7 +189,7 @@ public class BracketOrderManager {
         for (Order order : orderBook.getData()) {
             if (order.getSecurityId().equals(securityId)
                     && order.getOrderType().equals(orderType)
-                    && order.getStatus().startsWith("O")) {
+                    && order.getDisplayStatus().equals("Pending")) {
 
                 OrderCancelRequest cancelRequest = new OrderCancelRequest(
                         order.getOrderNo(),

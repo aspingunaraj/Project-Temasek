@@ -6,6 +6,7 @@ import org.example.tokenStorage.TokenInfo;
 import org.example.tokenStorage.TokenStorageService;
 import org.example.tradeGovernance.OrderServices;
 import org.example.tradeGovernance.PositionServices;
+import org.example.tradeGovernance.TradeAnalysis;
 import org.example.tradeGovernance.model.OrderBookResponse;
 import org.example.tradeGovernance.model.Position;
 import org.springframework.boot.SpringApplication;
@@ -66,7 +67,9 @@ public class Main {
                     currentPositions.clear();
                     currentPositions.addAll(freshPositions);
                     System.out.println("📥 Position list updated: " + freshPositions.size() + " entries");
-                    System.out.println("World is new this side");
+                    if (latestOrderBook != null && latestOrderBook.getData() != null) {
+                        TradeAnalysis.evaluatePnLForOpenPositions(currentPositions, latestOrderBook.getData(),0.25,0.25);
+                    }
                 }
             }
         } catch (Exception e) {

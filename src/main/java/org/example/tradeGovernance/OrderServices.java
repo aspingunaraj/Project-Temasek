@@ -5,6 +5,9 @@ import org.example.tradeGovernance.model.*;
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+import java.util.List;
+import java.util.Optional; // ← ✅ Required for Optional
+import java.util.stream.Collectors;
 
 /**
  * Handles communication with Paytm Money order-related APIs.
@@ -175,4 +178,90 @@ public class OrderServices {
     private <T> HttpEntity<T> buildEntity(T body) {
         return new HttpEntity<>(body, buildHeaders());
     }
+
+    /**
+     * Handles intelligent order placement logic for a given symbol:
+     * 1. Checks existing position.
+     * 2. Compares with trade action (BUY/SELL).
+     * 3. Cancels or exits mismatched positions if needed.
+     * 4. Ensures no duplicate/pending orders exist before placing.
+     */
+
+    public void orderManagement(String securityId, TradeAnalysis.Action action, float ltp) {
+        // 1️⃣ Check for existing position in Main.currentPositions
+        Optional<Position> existingPositionOpt = Main.currentPositions.stream()
+                .filter(pos -> pos.getSecurity_id().equals(securityId))
+                .findFirst();
+
+        if (existingPositionOpt.isPresent()) {
+            Position pos = existingPositionOpt.get();
+            int netQty = pos.getNet_qty();
+
+            // ✅ Case 1: Position exists and matches action (e.g., long position + BUY)
+            if ((netQty > 0 && action == TradeAnalysis.Action.BUY) ||
+                    (netQty < 0 && action == TradeAnalysis.Action.SELL)) {
+                System.out.println("⚖️ Existing position already matches action. No new order needed.");
+                return;
+            }
+
+            // 🔁 Case 2: Opposite position exists — must exit by placing reverse order
+            if ((netQty > 0 && action == TradeAnalysis.Action.SELL) ||
+                    (netQty < 0 && action == TradeAnalysis.Action.BUY)) {
+                System.out.println("🔁 Exiting opposite position with reverse order.");
+
+                // Reverse transaction type
+                String reverseTxnType = (netQty > 0) ? "S" : "B";
+
+                // Create and send reverse market order to square off
+                NormalOrderRequest exitOrder = new NormalOrderRequest(
+                        reverseTxnType, "NSE", "E", "I", securityId,
+                        Math.abs(netQty), // use quantity equal to open position
+                        "DAY", "MKT", 0.0, null, "N", "false"
+                );
+
+                NormalOrderResponse exitResponse = placeNormalOrder(exitOrder);
+                if (exitResponse != null && exitResponse.getMessage() != null) {
+                    System.out.println("✅ Exit Order Placed: " + exitResponse.getMessage());
+                } else {
+                    System.err.println("❌ Failed to exit existing position for " + securityId);
+                }
+
+                return; // Exit early to avoid placing new order until position is flattened
+            }
+        }
+
+        // 2️⃣ No open position — Check if a pending order already exists in order book
+        OrderBookResponse orderBook = Main.latestOrderBook;
+        if (orderBook != null && orderBook.getData() != null) {
+            boolean pendingExists = orderBook.getData().stream()
+                    .anyMatch(order ->
+                            order.getSecurityId().equals(securityId)
+                                    && order.getDisplayStatus() != null
+                                    && order.getDisplayStatus().equalsIgnoreCase("Pending")
+                    );
+
+            if (pendingExists) {
+                System.out.println("⏳ Pending order already exists for " + securityId + ". Skipping placement.");
+                return;
+            }
+        }
+
+        // 3️⃣ No matching position or pending order — Place fresh normal market order
+        System.out.println("🚀 No position or pending order. Proceeding to place new normal order.");
+        String txnType = (action == TradeAnalysis.Action.BUY) ? "B" : "S";
+
+        NormalOrderRequest request = new NormalOrderRequest(
+                txnType, "NSE", "E", "I", securityId, 1,
+                "DAY", "MKT", 0.0, null, "N", "false"
+        );
+
+        NormalOrderResponse response = placeNormalOrder(request);
+        if (response != null && response.getMessage() != null) {
+            System.out.println("✅ Order Placed → " + response.getMessage());
+        } else {
+            System.err.println("❌ Failed to place order for " + securityId);
+        }
+    }
+
+
 }

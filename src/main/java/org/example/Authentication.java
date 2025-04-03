@@ -4,6 +4,7 @@ import org.example.dataAnalysis.DepthPacketStrategies;
 import org.example.tokenStorage.TokenInfo;
 import org.example.tokenStorage.TokenStorageService;
 import org.example.tradeGovernance.BracketOrderManager;
+import org.example.tradeGovernance.OrderServices;
 import org.example.tradeGovernance.TradeAnalysis;
 import org.example.websocket.WebSocketClient;
 import org.example.websocket.dataPreparation.DepthPacketHistoryManager;
@@ -21,10 +22,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Controller
 public class Authentication {
-
+    // Store last evaluation timestamps
+    private final Map<Integer, Long> lastEvaluated = new ConcurrentHashMap<>();
+    private static final long EVALUATION_COOLDOWN_MS = 1000; // 1 second cooldown
 
     @GetMapping("/")
     public String home(Model model) {
@@ -171,26 +175,44 @@ public class Authentication {
 
             webSocketClient.setOnMessageListener(ticks -> {
                 System.out.println("📈 Received " + ticks.size() + " ticks");
+
                 for (Tick tick : ticks) {
+                    int securityId = tick.getSecurityId();
                     System.out.println(tick);
 
+                    // ✅ Always store tick history
                     if (tick.getMbpRowPacket() != null && !tick.getMbpRowPacket().isEmpty()) {
                         historyManager.addTick(tick);
                     }
-                    DepthPacketStrategies.Signal signal = DepthPacketStrategies.evaluateMarketSignal(historyManager.getTickHistory(tick.getSecurityId()));
-                    System.out.println("🔍 Decision for Security ID " + tick.getSecurityId() + ": " + signal);
+
+                    // ⏱️ Skip if recently evaluated
+                    long now = System.currentTimeMillis();
+                    if (lastEvaluated.containsKey(securityId) &&
+                            now - lastEvaluated.get(securityId) < EVALUATION_COOLDOWN_MS) {
+                        System.out.println("⏳ Skipping re-evaluation for " + securityId);
+                        continue;
+                    }
+
+                    // ✅ Update timestamp
+                    lastEvaluated.put(securityId, now);
+
+                    // 🔍 Strategy + Action
+                    DepthPacketStrategies.Signal signal = DepthPacketStrategies.evaluateMarketSignal(
+                            historyManager.getTickHistory(securityId)
+                    );
+                    System.out.println("🔍 Decision for Security ID " + securityId + ": " + signal);
+
                     TradeAnalysis tradeAnalysis = new TradeAnalysis();
-                    TradeAnalysis.Action action = tradeAnalysis.evaluateTradeAction(tick.getSecurityId(), signal, Main.accessToken);
+                    TradeAnalysis.Action action = tradeAnalysis.evaluateTradeAction(
+                            securityId, signal, Main.accessToken
+                    );
                     System.out.println("🚦 Trade Action: " + action);
-                    if ((action == TradeAnalysis.Action.BUY)||(action == TradeAnalysis.Action.SELL))
-                    {
-                        BracketOrderManager bracketOrderManager = new BracketOrderManager(0.5, 0.5);
-                        bracketOrderManager.placeBracketOrder(String.valueOf(tick.getSecurityId()), action,tick.getLastTradedPrice());
+
+                    // ✅ Place Bracket Order
+                    if (action == TradeAnalysis.Action.BUY || action == TradeAnalysis.Action.SELL) {
+                        new OrderServices().orderManagement(String.valueOf(securityId), action, tick.getLastTradedPrice());
                     }
                 }
-
-
-
             });
 
             webSocketClient.connect();
@@ -203,9 +225,4 @@ public class Authentication {
             System.err.println("❌ WebSocket Init Exception: " + e.getMessage());
         }
     }
-
-
-
-
-
 }
