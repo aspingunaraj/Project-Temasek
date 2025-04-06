@@ -95,6 +95,14 @@ public class Main {
         }
     }
 
+    @Scheduled(cron = "0/30 0-14 9 * * *", zone = "Asia/Kolkata")
+    public void scheduledSquareOffBetween230And245IST() {
+        System.out.println("🛎️ Scheduled Square-Off Triggered (2:30–2:45 PM IST)");
+
+        TradeAnalysis tradeAnalysis = new TradeAnalysis();
+        tradeAnalysis.squareOffAllOpenPositions();
+    }
+
 
 
 

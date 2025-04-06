@@ -1,7 +1,7 @@
 package org.example.tradeGovernance;
 
 import org.example.Main;
-import org.example.dataAnalysis.DepthPacketStrategies;
+import org.example.dataAnalysis.StrategyOne;
 import org.example.tradeGovernance.model.Order;
 import org.example.tradeGovernance.model.Position;
 import java.util.Comparator;
@@ -25,7 +25,7 @@ public class TradeAnalysis {
         HOLD   // Maintain current state
     }
 
-    public Action evaluateTradeAction(Integer securityId, DepthPacketStrategies.Signal signal, String jwtToken) {
+    public Action evaluateTradeAction(Integer securityId, StrategyOne.Signal signal, String jwtToken) {
         List<Position> positions = Main.currentPositions;
 
         if (positions == null || positions.isEmpty()) {
@@ -36,13 +36,13 @@ public class TradeAnalysis {
             if (position.getSecurity_id().equals(securityId)) {
                 int netQty = position.getNet_qty();
 
-                if (signal == DepthPacketStrategies.Signal.BUY) {
+                if (signal == StrategyOne.Signal.BUY) {
                     if (netQty < 0) return Action.EXIT;
                     if (netQty == 0) return Action.BUY;
                     return Action.HOLD;
                 }
 
-                if (signal == DepthPacketStrategies.Signal.SELL) {
+                if (signal == StrategyOne.Signal.SELL) {
                     if (netQty > 0) return Action.EXIT;
                     if (netQty == 0) return Action.SELL;
                     return Action.HOLD;
@@ -55,7 +55,7 @@ public class TradeAnalysis {
         return signalToAction(signal);
     }
 
-    private Action signalToAction(DepthPacketStrategies.Signal signal) {
+    private Action signalToAction(StrategyOne.Signal signal) {
         return switch (signal) {
             case BUY -> Action.BUY;
             case SELL -> Action.SELL;
@@ -159,6 +159,43 @@ public class TradeAnalysis {
         }
     }
 
+
+    /**
+     * 📤 Squares off all open positions by placing reverse market orders.
+     * This is typically used for EOD square-off or during emergency shutdown.
+     */
+    public void squareOffAllOpenPositions() {
+        System.out.println("🔁 Initiating square-off for all open positions...");
+
+        List<Position> positions = Main.currentPositions;
+        OrderServices orderServices = new OrderServices();
+
+        for (Position position : positions) {
+            int netQty = position.getNet_qty();
+            String securityId = position.getSecurity_id();
+
+            // ❌ Skip closed positions
+            if (netQty == 0) continue;
+
+            // ⏳ Skip if there is a pending order for this security
+            if (orderServices.hasPendingOrderForSymbol(securityId)) {
+                System.out.println("⏳ Skipping " + securityId + " as pending order exists.");
+                continue;
+            }
+
+            // 🧾 Prepare and place reverse exit order
+            String reverseTxnType = (netQty > 0) ? "S" : "B";
+            boolean exitPlaced = orderServices.placeExitOrder(securityId, reverseTxnType, Math.abs(netQty));
+
+            if (exitPlaced) {
+                System.out.println("✅ Square-off order placed for " + securityId);
+            } else {
+                System.err.println("❌ Failed to place square-off order for " + securityId);
+            }
+        }
+
+        System.out.println("✅ Square-off evaluation completed.");
+    }
 
 
 

@@ -5,7 +5,7 @@ import org.example.websocket.model.Tick;
 
 import java.util.List;
 
-public class DepthPacketStrategies {
+public class StrategyOne {
 
     public enum Signal {
         BUY, SELL, HOLD

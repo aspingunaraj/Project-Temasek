@@ -1,9 +1,9 @@
 package org.example;
 
-import org.example.dataAnalysis.DepthPacketStrategies;
+import org.example.dataAnalysis.StrategyOne;
+import org.example.dataAnalysis.StrategyManager;
 import org.example.tokenStorage.TokenInfo;
 import org.example.tokenStorage.TokenStorageService;
-import org.example.tradeGovernance.BracketOrderManager;
 import org.example.tradeGovernance.OrderServices;
 import org.example.tradeGovernance.TradeAnalysis;
 import org.example.websocket.WebSocketClient;
@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -197,8 +196,9 @@ public class Authentication {
                     lastEvaluated.put(securityId, now);
 
                     // 🔍 Strategy + Action
-                    DepthPacketStrategies.Signal signal = DepthPacketStrategies.evaluateMarketSignal(
-                            historyManager.getTickHistory(securityId)
+                    StrategyOne.Signal signal = StrategyManager.strategySelector(
+                            historyManager.getTickHistory(securityId),
+                            securityId
                     );
                     System.out.println("🔍 Decision for Security ID " + securityId + ": " + signal);
 
