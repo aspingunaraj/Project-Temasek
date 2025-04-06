@@ -188,7 +188,6 @@ public class OrderServices {
      */
 
     public void orderManagement(String securityId, TradeAnalysis.Action action, float ltp) {
-        // 1️⃣ Check for existing position in Main.currentPositions
         Optional<Position> existingPositionOpt = Main.currentPositions.stream()
                 .filter(pos -> pos.getSecurity_id().equals(securityId))
                 .findFirst();
@@ -197,57 +196,35 @@ public class OrderServices {
             Position pos = existingPositionOpt.get();
             int netQty = pos.getNet_qty();
 
-            // ✅ Case 1: Position exists and matches action (e.g., long position + BUY)
+            // ✅ If position matches action — no need to act
             if ((netQty > 0 && action == TradeAnalysis.Action.BUY) ||
                     (netQty < 0 && action == TradeAnalysis.Action.SELL)) {
                 System.out.println("⚖️ Existing position already matches action. No new order needed.");
                 return;
             }
 
-            // 🔁 Case 2: Opposite position exists — must exit by placing reverse order
+            // 🔁 Exit the opposite position first
             if ((netQty > 0 && action == TradeAnalysis.Action.SELL) ||
                     (netQty < 0 && action == TradeAnalysis.Action.BUY)) {
-                System.out.println("🔁 Exiting opposite position with reverse order.");
+                System.out.println("🔁 Exiting opposite position before placing new order.");
 
-                // Reverse transaction type
                 String reverseTxnType = (netQty > 0) ? "S" : "B";
+                boolean exited = placeExitOrder(securityId, reverseTxnType, Math.abs(netQty));
+                if (!exited) return;
 
-                // Create and send reverse market order to square off
-                NormalOrderRequest exitOrder = new NormalOrderRequest(
-                        reverseTxnType, "NSE", "E", "I", securityId,
-                        Math.abs(netQty), // use quantity equal to open position
-                        "DAY", "MKT", 0.0, null, "N", "false"
-                );
-
-                NormalOrderResponse exitResponse = placeNormalOrder(exitOrder);
-                if (exitResponse != null && exitResponse.getMessage() != null) {
-                    System.out.println("✅ Exit Order Placed: " + exitResponse.getMessage());
-                } else {
-                    System.err.println("❌ Failed to exit existing position for " + securityId);
-                }
-
-                return; // Exit early to avoid placing new order until position is flattened
+                return; // Wait until next cycle to place new directional order
             }
         }
 
-        // 2️⃣ No open position — Check if a pending order already exists in order book
-        OrderBookResponse orderBook = Main.latestOrderBook;
-        if (orderBook != null && orderBook.getData() != null) {
-            boolean pendingExists = orderBook.getData().stream()
-                    .anyMatch(order ->
-                            order.getSecurityId().equals(securityId)
-                                    && order.getDisplayStatus() != null
-                                    && order.getDisplayStatus().equalsIgnoreCase("Pending")
-                    );
-
-            if (pendingExists) {
-                System.out.println("⏳ Pending order already exists for " + securityId + ". Skipping placement.");
-                return;
-            }
+        // 🧾 No existing position → Check for pending order
+        // 🧾 No existing position → Check for pending order
+        if (hasPendingOrderForSymbol(securityId)) {
+            System.out.println("⏳ Pending order already exists for " + securityId + ". Skipping placement.");
+            return;
         }
 
-        // 3️⃣ No matching position or pending order — Place fresh normal market order
-        System.out.println("🚀 No position or pending order. Proceeding to place new normal order.");
+        // 🚀 Place new normal market order
+        System.out.println("🚀 No open position or pending order. Placing new normal order.");
         String txnType = (action == TradeAnalysis.Action.BUY) ? "B" : "S";
 
         NormalOrderRequest request = new NormalOrderRequest(
@@ -261,6 +238,51 @@ public class OrderServices {
         } else {
             System.err.println("❌ Failed to place order for " + securityId);
         }
+    }
+
+
+    /**
+     * Places a reverse market order to exit an existing position.
+     *
+     * @param securityId The security ID of the symbol
+     * @param txnType    "B" for Buy, "S" for Sell (reverse of current position)
+     * @param quantity   Quantity to square off (absolute net quantity)
+     * @return true if order placed successfully, false otherwise
+     */
+    public boolean placeExitOrder(String securityId, String txnType, int quantity) {
+        NormalOrderRequest exitOrder = new NormalOrderRequest(
+                txnType, "NSE", "E", "I", securityId,
+                quantity,
+                "DAY", "MKT", 0.0, null, "N", "false"
+        );
+
+        NormalOrderResponse exitResponse = placeNormalOrder(exitOrder);
+        if (exitResponse != null && exitResponse.getMessage() != null) {
+            System.out.println("✅ Exit Order Placed for " + securityId + ": " + exitResponse.getMessage());
+            return true;
+        } else {
+            System.err.println("❌ Failed to exit existing position for " + securityId);
+            return false;
+        }
+    }
+
+
+    /**
+     * Checks if there is any pending order for the given security ID
+     * in the latest global order book.
+     *
+     * @param securityId The symbol to check
+     * @return true if a pending order exists, false otherwise
+     */
+    public boolean hasPendingOrderForSymbol(String securityId) {
+        if (Main.latestOrderBook != null && Main.latestOrderBook.getData() != null) {
+            return Main.latestOrderBook.getData().stream()
+                    .anyMatch(order ->
+                            order.getSecurityId().equals(securityId)
+                                    && "Pending".equalsIgnoreCase(order.getDisplayStatus())
+                    );
+        }
+        return false;
     }
 
 

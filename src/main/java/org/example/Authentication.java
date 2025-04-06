@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Authentication {
     // Store last evaluation timestamps
     private final Map<Integer, Long> lastEvaluated = new ConcurrentHashMap<>();
-    private static final long EVALUATION_COOLDOWN_MS = 1000; // 1 second cooldown
+    private static final long EVALUATION_COOLDOWN_MS = 2000; // 1 second cooldown
 
     @GetMapping("/")
     public String home(Model model) {

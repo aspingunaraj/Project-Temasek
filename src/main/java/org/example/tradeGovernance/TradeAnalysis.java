@@ -87,23 +87,25 @@ public class TradeAnalysis {
     ) {
         System.out.println("🔍 Evaluating open positions for PnL...");
 
+        // 🔧 Instantiate OrderServices to place exit orders and check pending state
+        OrderServices orderServices = new OrderServices();
+
         for (Position position : positions) {
-            /**
-             * 🚫 Skip closed positions:
-             * 'net_qty' represents the net open quantity of the position.
-             * - A value of 0 indicates that there is no open position (fully squared off).
-             * - Therefore, we only need to evaluate positions where some quantity is still open
-             *   (i.e., 'net_qty' is either positive for long or negative for short positions).
-             */
+            // 🚫 Skip if no open position
             if (position.getNet_qty() == 0) continue;
 
             String securityId = position.getSecurity_id();
             double ltp = position.getLast_traded_price();
             int netQty = position.getNet_qty();
 
+            // ❌ Skip if there's already a pending order for the symbol
+            if (orderServices.hasPendingOrderForSymbol(securityId)) {
+                System.out.println("⏳ Pending order exists for " + securityId + ". Skipping PnL exit evaluation.");
+                continue;
+            }
 
-            // 🧾 Find most recent *completed* order for this security to get avg traded price
-            List<org.example.tradeGovernance.model.Order> completedOrders = orders.stream()
+            // 🧾 Filter completed orders for the same symbol
+            List<Order> completedOrders = orders.stream()
                     .filter(order -> order.getSecurityId().equals(securityId))
                     .filter(order -> {
                         String status = order.getDisplayStatus();
@@ -113,42 +115,51 @@ public class TradeAnalysis {
                     .sorted(Comparator.comparing(Order::getOrderDateTime).reversed()) // Latest first
                     .collect(Collectors.toList());
 
-            // 🚫 If no relevant completed order found, skip evaluation
+            // 🚫 If no completed order exists, skip evaluation
             if (completedOrders.isEmpty()) {
                 System.out.println("⚠️ No completed order found for " + securityId + " → Skipping...");
                 continue;
             }
 
-            org.example.tradeGovernance.model.Order latestCompletedOrder = completedOrders.get(0);
+            Order latestCompletedOrder = completedOrders.get(0);
             double avgTradedPrice = latestCompletedOrder.getAvgTradedPrice();
 
-            // 📈 Define dynamic target/SL price ranges based on trade price
+            // 📈 Compute limits
             double upperLimit = avgTradedPrice * (1 + (targetPercent / 100));
             double lowerLimit = avgTradedPrice * (1 - (stopLossPercent / 100));
 
             System.out.println("📘 " + securityId + " | Position: " + netQty +
                     " | AvgPrice: " + avgTradedPrice + " | LTP: " + ltp);
 
-            // 📊 Check price thresholds based on long or short position
-            if (netQty > 0) { // 🟢 Long Position
+            // 🟢 Long Position Logic
+            if (netQty > 0) {
                 if (ltp >= upperLimit) {
-                    System.out.println("🎯 Target reached for " + securityId);
+                    System.out.println("🎯 Target reached for " + securityId + ". Placing exit SELL order.");
+                    orderServices.placeExitOrder(securityId, "S", netQty);
                 } else if (ltp <= lowerLimit) {
-                    System.out.println("🛑 Stop-loss hit for " + securityId);
+                    System.out.println("🛑 Stop-loss hit for " + securityId + ". Placing exit SELL order.");
+                    orderServices.placeExitOrder(securityId, "S", netQty);
                 } else {
                     System.out.println("📊 Within range. Monitoring continues.");
                 }
-            } else { // 🔴 Short Position
+            }
+
+            // 🔴 Short Position Logic
+            else {
                 if (ltp <= lowerLimit) {
-                    System.out.println("🎯 Target reached for short " + securityId);
+                    System.out.println("🎯 Target reached for short " + securityId + ". Placing exit BUY order.");
+                    orderServices.placeExitOrder(securityId, "B", Math.abs(netQty));
                 } else if (ltp >= upperLimit) {
-                    System.out.println("🛑 Stop-loss hit for short " + securityId);
+                    System.out.println("🛑 Stop-loss hit for short " + securityId + ". Placing exit BUY order.");
+                    orderServices.placeExitOrder(securityId, "B", Math.abs(netQty));
                 } else {
                     System.out.println("📊 Within range for short. Monitoring continues.");
                 }
             }
         }
     }
+
+
 
 
 
