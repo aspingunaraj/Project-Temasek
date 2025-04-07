@@ -2,6 +2,9 @@ package org.example;
 
 import org.example.dataAnalysis.StrategyOne;
 import org.example.dataAnalysis.StrategyManager;
+import org.example.dataAnalysis.machineLearning.SignalModelTrainer;
+import org.example.dataAnalysis.machineLearning.TickAdapter;
+import org.example.dataAnalysis.machineLearning.TrainingDataWriter;
 import org.example.tokenStorage.TokenInfo;
 import org.example.tokenStorage.TokenStorageService;
 import org.example.tradeGovernance.OrderServices;
@@ -18,16 +21,27 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
+import java.time.OffsetDateTime;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.tribuo.*;
+import org.tribuo.classification.Label;
+import org.tribuo.classification.LabelFactory;
+import org.tribuo.classification.sgd.linear.LinearSGDTrainer;
+import org.tribuo.classification.sgd.objectives.LogMulticlass;
+import org.tribuo.datasource.ListDataSource;
+import org.tribuo.impl.ListExample;
+import org.tribuo.math.optimisers.AdaGrad;
+import org.tribuo.provenance.SimpleDataSourceProvenance;
 
 @Controller
 public class Authentication {
-    // Store last evaluation timestamps
     private final Map<Integer, Long> lastEvaluated = new ConcurrentHashMap<>();
-    private static final long EVALUATION_COOLDOWN_MS = 2000; // 1 second cooldown
+    private final Map<Integer, List<Tick>> trainingTickBuffer = new ConcurrentHashMap<>();
+    private static final long EVALUATION_COOLDOWN_MS = 2000;
 
     @GetMapping("/")
     public String home(Model model) {
@@ -46,18 +60,12 @@ public class Authentication {
         return tokens;
     }
 
-
     @GetMapping({"/token", "/token/"})
-    public String tokenPage(
-            @RequestParam("requestToken") String requestToken,
-            @RequestParam(value = "success", required = false) String success,
-            @RequestParam(value = "state", required = false) String state,
-            Model model) {
-
+    public String tokenPage(@RequestParam("requestToken") String requestToken,
+                            @RequestParam(value = "success", required = false) String success,
+                            @RequestParam(value = "state", required = false) String state,
+                            Model model) {
         System.out.println("Token received: " + requestToken);
-        System.out.println("Success: " + success);
-        System.out.println("State: " + state);
-
         model.addAttribute("requestToken", requestToken);
         return "token";
     }
@@ -65,10 +73,7 @@ public class Authentication {
     @PostMapping("/save-token")
     public String saveToken(@RequestParam("token") String token, Model model) {
         Main.requestToken = token;
-        System.out.println("Token saved: " + Main.requestToken);
-
         generateAccessTokens(Main.apiKey, Main.apiSecretKey, Main.requestToken);
-
         model.addAttribute("message", "Token saved and access tokens generated!");
         model.addAttribute("requestToken", token);
         return "token";
@@ -79,7 +84,6 @@ public class Authentication {
     public Map<String, Object> getTokenStatus() {
         TokenStorageService tokenStorageService = new TokenStorageService();
         boolean expired = tokenStorageService.isTokenExpired();
-
         Map<String, Object> response = new HashMap<>();
         response.put("expired", expired);
         response.put("message", expired ? "🔐 Token expired. Please regenerate." : "✅ Token is valid.");
@@ -89,7 +93,6 @@ public class Authentication {
     public void generateAccessTokens(String apiKey, String apiSecret, String requestToken) {
         try {
             String url = "https://developer.paytmmoney.com/accounts/v2/gettoken";
-
             RestTemplate restTemplate = new RestTemplate(new HttpComponentsClientHttpRequestFactory());
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -104,27 +107,22 @@ public class Authentication {
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 Map<String, String> responseBody = response.getBody();
-
                 TokenInfo tokenInfo = new TokenInfo();
                 tokenInfo.setAccessToken(responseBody.get("access_token"));
                 tokenInfo.setPublicAccessToken(responseBody.get("public_access_token"));
                 tokenInfo.setReadAccessToken(responseBody.get("read_access_token"));
 
-// Store in memory
                 Main.accessToken = tokenInfo.getAccessToken();
                 Main.publicAccessToken = tokenInfo.getPublicAccessToken();
                 Main.readAccessToken = tokenInfo.getReadAccessToken();
 
-// Save to disk
                 new TokenStorageService().saveTokens(tokenInfo);
 
                 System.out.println("✅ Access Token: " + Main.accessToken);
                 System.out.println("✅ Public Access Token: " + Main.publicAccessToken);
                 System.out.println("✅ Read Access Token: " + Main.readAccessToken);
 
-                // ➕ Trigger WebSocket Initialization
                 initializeWebSocketConnection();
-
             } else {
                 System.err.println("❌ Failed to get access tokens. Status: " + response.getStatusCode());
             }
@@ -132,6 +130,7 @@ public class Authentication {
             System.err.println("❌ Exception occurred while generating tokens: " + e.getMessage());
         }
     }
+
     @GetMapping("/start-websocket")
     @ResponseBody
     public String startWebSocketManually() {
@@ -147,44 +146,30 @@ public class Authentication {
         try {
             WebSocketClient webSocketClient = new WebSocketClient(Main.publicAccessToken);
 
-            webSocketClient.setOnOpenListener(() ->
-                    System.out.println("📡 WebSocket connected."));
-
-            webSocketClient.setOnCloseListener(reason ->
-                    System.out.println("🔌 WebSocket closed: " + reason));
+            webSocketClient.setOnOpenListener(() -> System.out.println("📡 WebSocket connected."));
+            webSocketClient.setOnCloseListener(reason -> System.out.println("🔌 WebSocket closed: " + reason));
 
             webSocketClient.setOnErrorListener(new org.example.websocket.listeners.OnErrorListener() {
-                @Override
-                public void onError(String errorMessage) {
-                    System.err.println("WebSocket Error (String): " + errorMessage);
-                }
-
-                @Override
-                public void onError(Exception e) {
-                    e.printStackTrace();
-                }
-
-                @Override
-                public void onError(RuntimeException re) {
-                    re.printStackTrace();
-                }
+                public void onError(String errorMessage) { System.err.println("WebSocket Error: " + errorMessage); }
+                public void onError(Exception e) { e.printStackTrace(); }
+                public void onError(RuntimeException re) { re.printStackTrace(); }
             });
 
             DepthPacketHistoryManager historyManager = DepthPacketHistoryManager.getInstance();
 
             webSocketClient.setOnMessageListener(ticks -> {
                 System.out.println("📈 Received " + ticks.size() + " ticks");
-
                 for (Tick tick : ticks) {
                     int securityId = tick.getSecurityId();
                     System.out.println(tick);
 
-                    // ✅ Always store tick history
                     if (tick.getMbpRowPacket() != null && !tick.getMbpRowPacket().isEmpty()) {
                         historyManager.addTick(tick);
+
+                        trainingTickBuffer.computeIfAbsent(securityId, k -> new ArrayList<>()).add(tick);
+                        checkAndTrainModelIfReady(securityId);
                     }
 
-                    // ⏱️ Skip if recently evaluated
                     long now = System.currentTimeMillis();
                     if (lastEvaluated.containsKey(securityId) &&
                             now - lastEvaluated.get(securityId) < EVALUATION_COOLDOWN_MS) {
@@ -192,23 +177,15 @@ public class Authentication {
                         continue;
                     }
 
-                    // ✅ Update timestamp
                     lastEvaluated.put(securityId, now);
-
-                    // 🔍 Strategy + Action
                     StrategyOne.Signal signal = StrategyManager.strategySelector(
-                            historyManager.getTickHistory(securityId),
-                            securityId
-                    );
+                            historyManager.getTickHistory(securityId), securityId);
                     System.out.println("🔍 Decision for Security ID " + securityId + ": " + signal);
 
                     TradeAnalysis tradeAnalysis = new TradeAnalysis();
-                    TradeAnalysis.Action action = tradeAnalysis.evaluateTradeAction(
-                            securityId, signal, Main.accessToken
-                    );
+                    TradeAnalysis.Action action = tradeAnalysis.evaluateTradeAction(securityId, signal, Main.accessToken);
                     System.out.println("🚦 Trade Action: " + action);
 
-                    // ✅ Place Bracket Order
                     if (action == TradeAnalysis.Action.BUY || action == TradeAnalysis.Action.SELL) {
                         new OrderServices().orderManagement(String.valueOf(securityId), action, tick.getLastTradedPrice());
                     }
@@ -216,13 +193,43 @@ public class Authentication {
             });
 
             webSocketClient.connect();
-
-            // Delay to ensure connection is ready before subscribing
             Thread.sleep(1000);
             List<PreferenceDto> prefs = SubscriptionPreferenceBuilder.buildPreferences();
             webSocketClient.subscribe(prefs);
+
         } catch (Exception e) {
             System.err.println("❌ WebSocket Init Exception: " + e.getMessage());
         }
     }
+
+    private void checkAndTrainModelIfReady(int securityId) {
+        List<Tick> history = trainingTickBuffer.getOrDefault(securityId, new ArrayList<>());
+
+        if (history.size() >= 300) {
+            System.out.println("🧠 300 ticks collected for Security ID " + securityId + ". Preparing training examples...");
+
+            try {
+                // Label and convert
+                List<TickAdapter.LabeledTick> labeledTicks = TickAdapter.labelTicks(history, 0.3);
+
+                for (TickAdapter.LabeledTick labeled : labeledTicks) {
+                    Map<String, Double> features = TickAdapter.extractFeatureMap(labeled.tick, history);
+                    if (features != null) {
+                        TrainingDataWriter.appendTrainingExample(new TrainingDataWriter.TrainingExample(features, labeled.label));
+                    }
+                }
+
+                System.out.println("📦 Saved training data to JSON");
+
+            } catch (Exception e) {
+                System.err.println("❌ Failed during JSON append: " + e.getMessage());
+            }
+
+            // Clear buffer
+            trainingTickBuffer.remove(securityId);
+            System.out.println("🧹 Cleared training buffer for Security ID " + securityId);
+        }
+    }
+
+
 }
