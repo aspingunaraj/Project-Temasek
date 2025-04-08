@@ -216,4 +216,19 @@ public class Authentication {
         return "strategyStats"; // Thymeleaf template name
     }
 
+    @PostMapping("/update-thresholds")
+    @ResponseBody
+    public String updateThresholds(@RequestBody Map<String, Double> thresholds) {
+        StrategyOne.updateThresholds(thresholds);
+        return "Thresholds updated successfully!";
+    }
+
+    @GetMapping("/current-thresholds")
+    @ResponseBody
+    public Map<String, Double> getCurrentThresholds() {
+        return StrategyOne.getThresholds();
+    }
+
+
+
 }

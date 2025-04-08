@@ -16,16 +16,16 @@ public class StrategyOne {
 
 
     // ✅ Centralized Thresholds (easy to tweak)
-    private static final double THRESHOLD_STRATEGY_1 = 1.3;
-    private static final double THRESHOLD_STRATEGY_2 = 1.4;
-    private static final double THRESHOLD_STRATEGY_3 = 1.5;
-    private static final double THRESHOLD_STRATEGY_4_MULTIPLIER = 1.6;
-    private static final double THRESHOLD_STRATEGY_5 = 1.2;
-    private static final double THRESHOLD_STRATEGY_6_DROP = 0.6;
-    private static final int    THRESHOLD_STRATEGY_6_COUNT = 3;
-    private static final double THRESHOLD_STRATEGY_7_OFI = 12.0;
-    private static final double THRESHOLD_STRATEGY_8 = 1.3;
-    private static final int    MIN_VOTES_REQUIRED = 7;
+    private static double THRESHOLD_STRATEGY_1 = 1.3;
+    private static double THRESHOLD_STRATEGY_2 = 1.4;
+    private static  double THRESHOLD_STRATEGY_3 = 1.5;
+    private static  double THRESHOLD_STRATEGY_4_MULTIPLIER = 1.6;
+    private static  double THRESHOLD_STRATEGY_5 = 1.2;
+    private static  double THRESHOLD_STRATEGY_6_DROP = 0.6;
+    private static  int  THRESHOLD_STRATEGY_6_COUNT = 3;
+    private static  double THRESHOLD_STRATEGY_7_OFI = 12.0;
+    private static  double THRESHOLD_STRATEGY_8 = 1.3;
+    private static  int    MIN_VOTES_REQUIRED = 7;
 
     public static Signal evaluateMarketSignal(List<Tick> recentTicks) {
         int buyVotes = 0, sellVotes = 0, holdVotes = 0;
@@ -77,6 +77,34 @@ public class StrategyOne {
         }
         return result;
     }
+
+    public static void updateThresholds(Map<String, Double> thresholds) {
+        THRESHOLD_STRATEGY_1 = thresholds.getOrDefault("threshold1", THRESHOLD_STRATEGY_1);
+        THRESHOLD_STRATEGY_2 = thresholds.getOrDefault("threshold2", THRESHOLD_STRATEGY_2);
+        THRESHOLD_STRATEGY_3 = thresholds.getOrDefault("threshold3", THRESHOLD_STRATEGY_3);
+        THRESHOLD_STRATEGY_4_MULTIPLIER = thresholds.getOrDefault("threshold4", THRESHOLD_STRATEGY_4_MULTIPLIER);
+        THRESHOLD_STRATEGY_5 = thresholds.getOrDefault("threshold5", THRESHOLD_STRATEGY_5);
+        THRESHOLD_STRATEGY_6_DROP = thresholds.getOrDefault("threshold6", THRESHOLD_STRATEGY_6_DROP);
+        THRESHOLD_STRATEGY_7_OFI = thresholds.getOrDefault("threshold7", THRESHOLD_STRATEGY_7_OFI);
+        THRESHOLD_STRATEGY_8 = thresholds.getOrDefault("threshold8", THRESHOLD_STRATEGY_8);
+
+        System.out.println("🔧 Updated thresholds: " + thresholds);
+    }
+
+    public static Map<String, Double> getThresholds() {
+        Map<String, Double> map = new LinkedHashMap<>();
+        map.put("threshold1", THRESHOLD_STRATEGY_1);
+        map.put("threshold2", THRESHOLD_STRATEGY_2);
+        map.put("threshold3", THRESHOLD_STRATEGY_3);
+        map.put("threshold4", THRESHOLD_STRATEGY_4_MULTIPLIER);
+        map.put("threshold5", THRESHOLD_STRATEGY_5);
+        map.put("threshold6", THRESHOLD_STRATEGY_6_DROP);
+        map.put("threshold7", THRESHOLD_STRATEGY_7_OFI);
+        map.put("threshold8", THRESHOLD_STRATEGY_8);
+        return map;
+    }
+
+
 
     private static Signal strategy1(List<Tick> ticks) {
         int buy = 0, sell = 0;
