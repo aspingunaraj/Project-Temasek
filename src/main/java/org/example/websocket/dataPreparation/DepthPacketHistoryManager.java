@@ -6,56 +6,67 @@ import java.util.*;
 
 public class DepthPacketHistoryManager {
 
-    // 🔁 Singleton instance
     private static final DepthPacketHistoryManager INSTANCE = new DepthPacketHistoryManager();
 
-    // 🗃️ Map to hold securityId and their rolling full Tick history (max 10 per security)
+    // Main 500-tick rolling evaluation buffer per security ID
     private final Map<Integer, LinkedList<Tick>> tickHistory = new HashMap<>();
 
-    // 🔒 Private constructor
+    // Dedicated training buffer (flushes after 300 ticks)
+    private final Map<Integer, LinkedList<Tick>> trainingTickBuffer = new HashMap<>();
+
     private DepthPacketHistoryManager() {}
 
-    // 🔓 Public accessor
     public static DepthPacketHistoryManager getInstance() {
         return INSTANCE;
     }
 
     /**
-     * Adds a new Tick to the rolling history (max 10 entries per security).
+     * Adds a new Tick to both evaluation and training buffers.
+     * Automatically calls onReadyToTrain if 300 ticks collected for training.
      */
-    public synchronized void addTick(Tick tick) {
+    public synchronized void addTick(Tick tick, Runnable onReadyToTrain) {
         int securityId = tick.getSecurityId();
-
         if (tick == null) return;
 
+        // ✅ Add to evaluation history (rolling 500)
         tickHistory.putIfAbsent(securityId, new LinkedList<>());
-        LinkedList<Tick> historyList = tickHistory.get(securityId);
+        LinkedList<Tick> evalHistory = tickHistory.get(securityId);
+        if (evalHistory.size() == 500) evalHistory.removeFirst();
+        evalHistory.addLast(tick);
 
-        if (historyList.size() == 50) {
-            historyList.removeFirst(); // remove oldest
+        // ✅ Add to training buffer
+        trainingTickBuffer.putIfAbsent(securityId, new LinkedList<>());
+        LinkedList<Tick> trainingHistory = trainingTickBuffer.get(securityId);
+        trainingHistory.addLast(tick);
+
+        // ✅ Trigger training if buffer is full
+        if (trainingHistory.size() >= 300) {
+            onReadyToTrain.run();
+            trainingTickBuffer.remove(securityId);
         }
-
-        historyList.addLast(tick); // save full Tick
     }
 
     /**
-     * Get the rolling Tick history for a security ID.
+     * Get the 500-tick rolling evaluation buffer.
      */
     public synchronized List<Tick> getTickHistory(int securityId) {
         return tickHistory.getOrDefault(securityId, new LinkedList<>());
     }
 
     /**
-     * Clear all Tick histories
+     * (Optional) Get the training buffer for a security.
      */
-    public synchronized void clearAll() {
-        tickHistory.clear();
+    public synchronized List<Tick> getTrainingHistory(int securityId) {
+        return trainingTickBuffer.getOrDefault(securityId, new LinkedList<>());
     }
 
-    /**
-     * Clear history for a specific securityId
-     */
+    public synchronized void clearAll() {
+        tickHistory.clear();
+        trainingTickBuffer.clear();
+    }
+
     public synchronized void clearHistory(int securityId) {
         tickHistory.remove(securityId);
+        trainingTickBuffer.remove(securityId);
     }
 }

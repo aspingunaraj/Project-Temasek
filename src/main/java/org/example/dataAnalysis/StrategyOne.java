@@ -3,13 +3,29 @@ package org.example.dataAnalysis;
 import org.example.websocket.model.DepthPacket;
 import org.example.websocket.model.Tick;
 
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class StrategyOne {
 
     public enum Signal {
         BUY, SELL, HOLD
     }
+
+    private static final Map<String, EnumMap<Signal, AtomicInteger>> strategyStats = new HashMap<>();
+
+
+    // ✅ Centralized Thresholds (easy to tweak)
+    private static final double THRESHOLD_STRATEGY_1 = 1.3;
+    private static final double THRESHOLD_STRATEGY_2 = 1.4;
+    private static final double THRESHOLD_STRATEGY_3 = 1.5;
+    private static final double THRESHOLD_STRATEGY_4_MULTIPLIER = 1.6;
+    private static final double THRESHOLD_STRATEGY_5 = 1.2;
+    private static final double THRESHOLD_STRATEGY_6_DROP = 0.6;
+    private static final int    THRESHOLD_STRATEGY_6_COUNT = 3;
+    private static final double THRESHOLD_STRATEGY_7_OFI = 12.0;
+    private static final double THRESHOLD_STRATEGY_8 = 1.3;
+    private static final int    MIN_VOTES_REQUIRED = 7;
 
     public static Signal evaluateMarketSignal(List<Tick> recentTicks) {
         int buyVotes = 0, sellVotes = 0, holdVotes = 0;
@@ -27,22 +43,39 @@ public class StrategyOne {
 
         String[] labels = {
                 "Buy vs Sell Qty", "Avg Qty per Level", "Top Book Strength",
-                "Price Movement", "Depth Pressure", "Sudden Collapse",
+                "Price Momentum", "Depth Pressure", "Sudden Collapse",
                 "Order Flow Imbalance", "Book Convexity"
         };
 
         for (int i = 0; i < strategies.length; i++) {
             Signal s = strategies[i];
-            System.out.println("📊 Strategy " + (i + 1) + " - " + labels[i] + " → " + s);
-            if (s == Signal.BUY) buyVotes++;
-            else if (s == Signal.SELL) sellVotes++;
-            else holdVotes++;
+            String label = labels[i];
+
+            strategyStats.putIfAbsent(label, new EnumMap<>(Signal.class));
+            strategyStats.get(label).putIfAbsent(s, new AtomicInteger(0));
+            strategyStats.get(label).get(s).incrementAndGet();
         }
 
-        System.out.println("✅ Votes → BUY: " + buyVotes + ", SELL: " + sellVotes + ", HOLD: " + holdVotes);
         if (buyVotes >= 7 && buyVotes > sellVotes) return Signal.BUY;
         if (sellVotes >= 7 && sellVotes > buyVotes) return Signal.SELL;
         return Signal.HOLD;
+    }
+
+
+    public static List<Map<String, Object>> getStrategyStats() {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map.Entry<String, EnumMap<Signal, AtomicInteger>> entry : strategyStats.entrySet()) {
+            String strategy = entry.getKey();
+            EnumMap<Signal, AtomicInteger> map = entry.getValue();
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("strategy", strategy);
+            row.put("BUY", map.getOrDefault(Signal.BUY, new AtomicInteger(0)).get());
+            row.put("SELL", map.getOrDefault(Signal.SELL, new AtomicInteger(0)).get());
+            row.put("HOLD", map.getOrDefault(Signal.HOLD, new AtomicInteger(0)).get());
+            result.add(row);
+        }
+        return result;
     }
 
     private static Signal strategy1(List<Tick> ticks) {
@@ -53,7 +86,7 @@ public class StrategyOne {
                 sell += dp.getSellQuantity();
             }
         }
-        return thresholdSignal(buy, sell, 1.5);
+        return thresholdSignal(buy, sell, THRESHOLD_STRATEGY_1);
     }
 
     private static Signal strategy2(List<Tick> ticks) {
@@ -66,7 +99,7 @@ public class StrategyOne {
             }
         }
         if (count == 0) return Signal.HOLD;
-        return thresholdSignal(buy / count, sell / count, 1.6);
+        return thresholdSignal((double) buy / count, (double) sell / count, THRESHOLD_STRATEGY_2);
     }
 
     private static Signal strategy3(List<Tick> ticks) {
@@ -78,7 +111,7 @@ public class StrategyOne {
                 else askStronger++;
             }
         }
-        return thresholdSignal(bidStronger, askStronger, 1.8);
+        return thresholdSignal(bidStronger, askStronger, THRESHOLD_STRATEGY_3);
     }
 
     private static Signal strategy4(List<Tick> ticks) {
@@ -92,8 +125,8 @@ public class StrategyOne {
             else if (now < past) momentumNegative++;
         }
 
-        if (momentumPositive > momentumNegative * 2.0) return Signal.BUY;
-        if (momentumNegative > momentumPositive * 2.0) return Signal.SELL;
+        if (momentumPositive > momentumNegative * THRESHOLD_STRATEGY_4_MULTIPLIER) return Signal.BUY;
+        if (momentumNegative > momentumPositive * THRESHOLD_STRATEGY_4_MULTIPLIER) return Signal.SELL;
         return Signal.HOLD;
     }
 
@@ -105,7 +138,7 @@ public class StrategyOne {
                 askPressure += dp.getSellQuantity() * dp.getSellPrice();
             }
         }
-        return thresholdSignal(bidPressure, askPressure, 1.4);
+        return thresholdSignal(bidPressure, askPressure, THRESHOLD_STRATEGY_5);
     }
 
     private static Signal strategy6(List<Tick> ticks) {
@@ -119,15 +152,15 @@ public class StrategyOne {
 
             double avgPrevBid = prev.stream().mapToDouble(DepthPacket::getBuyQuantity).average().orElse(0);
             double avgCurrBid = curr.stream().mapToDouble(DepthPacket::getBuyQuantity).average().orElse(0);
-            if (avgCurrBid < avgPrevBid * 0.4) dropCountBid++;
+            if (avgCurrBid < avgPrevBid * THRESHOLD_STRATEGY_6_DROP) dropCountBid++;
 
             double avgPrevAsk = prev.stream().mapToDouble(DepthPacket::getSellQuantity).average().orElse(0);
             double avgCurrAsk = curr.stream().mapToDouble(DepthPacket::getSellQuantity).average().orElse(0);
-            if (avgCurrAsk < avgPrevAsk * 0.4) dropCountAsk++;
+            if (avgCurrAsk < avgPrevAsk * THRESHOLD_STRATEGY_6_DROP) dropCountAsk++;
         }
 
-        if (dropCountAsk >= 3) return Signal.BUY;
-        if (dropCountBid >= 3) return Signal.SELL;
+        if (dropCountAsk >= THRESHOLD_STRATEGY_6_COUNT) return Signal.BUY;
+        if (dropCountBid >= THRESHOLD_STRATEGY_6_COUNT) return Signal.SELL;
         return Signal.HOLD;
     }
 
@@ -150,8 +183,8 @@ public class StrategyOne {
             smoothedOFI = alpha * deltaOFI + (1 - alpha) * smoothedOFI;
         }
 
-        if (smoothedOFI > 20) return Signal.BUY;
-        if (smoothedOFI < -20) return Signal.SELL;
+        if (smoothedOFI > THRESHOLD_STRATEGY_7_OFI) return Signal.BUY;
+        if (smoothedOFI < -THRESHOLD_STRATEGY_7_OFI) return Signal.SELL;
         return Signal.HOLD;
     }
 
@@ -174,7 +207,7 @@ public class StrategyOne {
         double normBid = totalBidConvexity / ticks.size();
         double normAsk = totalAskConvexity / ticks.size();
 
-        return thresholdSignal(normBid, normAsk, 1.6);
+        return thresholdSignal(normBid, normAsk, THRESHOLD_STRATEGY_8);
     }
 
     private static Signal thresholdSignal(double buy, double sell, double threshold) {

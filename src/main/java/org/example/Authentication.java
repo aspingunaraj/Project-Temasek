@@ -1,8 +1,7 @@
 package org.example;
 
-import org.example.dataAnalysis.StrategyOne;
 import org.example.dataAnalysis.StrategyManager;
-import org.example.dataAnalysis.machineLearning.SignalModelTrainer;
+import org.example.dataAnalysis.StrategyOne;
 import org.example.dataAnalysis.machineLearning.TickAdapter;
 import org.example.dataAnalysis.machineLearning.TrainingDataWriter;
 import org.example.tokenStorage.TokenInfo;
@@ -21,26 +20,13 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
-import java.io.FileOutputStream;
-import java.io.ObjectOutputStream;
-import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.tribuo.*;
-import org.tribuo.classification.Label;
-import org.tribuo.classification.LabelFactory;
-import org.tribuo.classification.sgd.linear.LinearSGDTrainer;
-import org.tribuo.classification.sgd.objectives.LogMulticlass;
-import org.tribuo.datasource.ListDataSource;
-import org.tribuo.impl.ListExample;
-import org.tribuo.math.optimisers.AdaGrad;
-import org.tribuo.provenance.SimpleDataSourceProvenance;
-
 @Controller
 public class Authentication {
+
     private final Map<Integer, Long> lastEvaluated = new ConcurrentHashMap<>();
-    private final Map<Integer, List<Tick>> trainingTickBuffer = new ConcurrentHashMap<>();
     private static final long EVALUATION_COOLDOWN_MS = 2000;
 
     @GetMapping("/")
@@ -159,15 +145,12 @@ public class Authentication {
 
             webSocketClient.setOnMessageListener(ticks -> {
                 System.out.println("📈 Received " + ticks.size() + " ticks");
+
                 for (Tick tick : ticks) {
                     int securityId = tick.getSecurityId();
-                    System.out.println(tick);
 
                     if (tick.getMbpRowPacket() != null && !tick.getMbpRowPacket().isEmpty()) {
-                        historyManager.addTick(tick);
-
-                        trainingTickBuffer.computeIfAbsent(securityId, k -> new ArrayList<>()).add(tick);
-                        checkAndTrainModelIfReady(securityId);
+                        historyManager.addTick(tick, () -> checkAndTrainModelIfReady(securityId));
                     }
 
                     long now = System.currentTimeMillis();
@@ -178,6 +161,7 @@ public class Authentication {
                     }
 
                     lastEvaluated.put(securityId, now);
+
                     StrategyOne.Signal signal = StrategyManager.strategySelector(
                             historyManager.getTickHistory(securityId), securityId);
                     System.out.println("🔍 Decision for Security ID " + securityId + ": " + signal);
@@ -203,13 +187,12 @@ public class Authentication {
     }
 
     private void checkAndTrainModelIfReady(int securityId) {
-        List<Tick> history = trainingTickBuffer.getOrDefault(securityId, new ArrayList<>());
+        List<Tick> history = DepthPacketHistoryManager.getInstance().getTickHistory(securityId);
 
         if (history.size() >= 300) {
-            System.out.println("🧠 300 ticks collected for Security ID " + securityId + ". Preparing training examples...");
+            System.out.println("🧠 300 ticks available in history for Security ID " + securityId + ". Preparing training examples...");
 
             try {
-                // Label and convert
                 List<TickAdapter.LabeledTick> labeledTicks = TickAdapter.labelTicks(history, 0.3);
 
                 for (TickAdapter.LabeledTick labeled : labeledTicks) {
@@ -224,12 +207,13 @@ public class Authentication {
             } catch (Exception e) {
                 System.err.println("❌ Failed during JSON append: " + e.getMessage());
             }
-
-            // Clear buffer
-            trainingTickBuffer.remove(securityId);
-            System.out.println("🧹 Cleared training buffer for Security ID " + securityId);
         }
     }
 
+    @GetMapping("/strategy-stats")
+    public String showStrategyStats(Model model) {
+        model.addAttribute("strategyStats", StrategyOne.getStrategyStats());
+        return "strategyStats"; // Thymeleaf template name
+    }
 
 }
