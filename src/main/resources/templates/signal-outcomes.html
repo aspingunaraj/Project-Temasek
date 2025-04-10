@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>📉 Signal Outcomes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <h2 class="text-center mb-4">📉 Signal Outcome Tracker</h2>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <input type="number" class="form-control" id="symbolFilter" placeholder="Symbol ID" style="max-width: 200px;">
+        <select class="form-select" id="typeFilter" style="max-width: 200px;">
+            <option value="">All</option>
+            <option value="BUY">BUY</option>
+            <option value="SELL">SELL</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadOutcomes()">Filter</button>
+        <a href="/" class="btn btn-outline-primary ms-auto">🏠 Home</a>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-outline-success" onclick="downloadCSV()">📥 Export CSV</button>
+        <a href="/strategy-stats" class="btn btn-outline-dark">📊 View Strategy Stats</a>
+    </div>
+
+    <h5 class="text-center mb-3">📌 Summary (by Signal)</h5>
+    <table class="table table-bordered text-center mb-4">
+        <thead class="table-light">
+        <tr><th>Signal</th><th>SUCCESS</th><th>FAILURE</th></tr>
+        </thead>
+        <tbody id="outcomeSummaryTable"></tbody>
+    </table>
+
+    <table class="table table-bordered text-center">
+        <thead class="table-light">
+        <tr>
+            <th>Symbol</th><th>Type</th><th>Entry</th><th>Exit</th>
+            <th>Target</th><th>Stop</th><th>Result</th>
+            <th>Entry Time</th><th>Exit Time</th>
+        </tr>
+        </thead>
+        <tbody id="outcomesTable"></tbody>
+    </table>
+</div>
+
+<script>
+    function loadOutcomes() {
+        const symbolId = document.getElementById("symbolFilter").value.trim();
+        const type = document.getElementById("typeFilter").value;
+
+        fetch('api/signal-outcomes')
+            .then(res => res.json())
+            .then(data => {
+                const filtered = data.filter(d =>
+                    (!symbolId || d.symbolId == symbolId) &&
+                    (!type || d.signalType === type)
+                );
+
+                const table = document.getElementById("outcomesTable");
+                table.innerHTML = "";
+                const summary = { BUY: { SUCCESS: 0, FAILURE: 0 }, SELL: { SUCCESS: 0, FAILURE: 0 } };
+
+                filtered.forEach(item => {
+                    if (summary[item.signalType]) {
+                        summary[item.signalType][item.outcome] = (summary[item.signalType][item.outcome] || 0) + 1;
+                    }
+
+                    table.innerHTML += `
+                        <tr>
+                            <td>${item.symbolId}</td>
+                            <td>${item.signalType}</td>
+                            <td>${item.entryPrice.toFixed(2)}</td>
+                            <td>${item.exitPrice.toFixed(2)}</td>
+                            <td>${item.targetPrice.toFixed(2)}</td>
+                            <td>${item.stopLossPrice.toFixed(2)}</td>
+                            <td class="${item.outcome === 'SUCCESS' ? 'text-success' : 'text-danger'}">${item.outcome}</td>
+                            <td>${item.entryTime?.replace('T',' ')}</td>
+                            <td>${item.exitTime?.replace('T',' ')}</td>
+                        </tr>`;
+                });
+
+                const summaryTable = document.getElementById("outcomeSummaryTable");
+                summaryTable.innerHTML = `
+                    <tr><td>BUY</td><td>${summary.BUY.SUCCESS}</td><td>${summary.BUY.FAILURE}</td></tr>
+                    <tr><td>SELL</td><td>${summary.SELL.SUCCESS}</td><td>${summary.SELL.FAILURE}</td></tr>
+                `;
+
+                window.__exportedData = filtered;
+            });
+    }
+
+    function downloadCSV() {
+        const data = window.__exportedData || [];
+        if (!data.length) return alert("No data to export!");
+
+        const headers = ["Symbol", "Signal", "Entry", "Exit", "Target", "Stop", "Outcome", "Entry Time", "Exit Time"];
+        const rows = data.map(d => [
+            d.symbolId, d.signalType, d.entryPrice, d.exitPrice,
+            d.targetPrice, d.stopLossPrice, d.outcome, d.entryTime, d.exitTime
+        ]);
+        let csv = headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "signal-outcomes.csv";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    window.addEventListener("DOMContentLoaded", loadOutcomes);
+</script>
+</body>
+</html>

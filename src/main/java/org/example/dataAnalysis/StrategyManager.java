@@ -1,5 +1,6 @@
 package org.example.dataAnalysis;
 
+import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.dataAnalysis.machineLearning.TickAdapter;
 import org.example.websocket.model.Tick;
 import org.tribuo.*;
@@ -34,13 +35,13 @@ public class StrategyManager {
         LocalTime currentTime = nowIST.toLocalTime();
 
         LocalTime start = LocalTime.of(9, 0);
-        LocalTime end = LocalTime.of(10, 0);
+        LocalTime end = LocalTime.of(14, 0);
 
         if (!currentTime.isBefore(start) && currentTime.isBefore(end)) {
             System.out.println("🧠 Using DepthPacketStrategies for symbol: " + symbolId);
             return StrategyOne.evaluateMarketSignal(recentTicks);
         } else {
-            System.out.println("🧠 Using ML Predictor for symbol: " + symbolId);
+            //System.out.println("🧠 Using ML Predictor for symbol: " + symbolId);
             return predictUsingML(recentTicks);
         }
     }

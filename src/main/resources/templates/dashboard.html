@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>📊 Model Training Dashboard</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            background-color: #f5f8fa;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .dashboard-header {
+            background: linear-gradient(90deg, #007bff, #0056b3);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .card {
+            border-radius: 0.75rem;
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-header">
+    <h2>📈 Project Temasek - Model Monitoring Dashboard</h2>
+    <p class="mb-0">Live Training & Prediction Metrics by Symbol</p>
+</div>
+
+<div class="container">
+    <!-- Symbol Summary Table -->
+    <div class="card p-4 mb-4">
+        <h5>🧩 Symbol Summary</h5>
+        <div class="table-responsive">
+            <table class="table table-bordered text-center" id="symbolSummaryTable">
+                <thead class="table-light">
+                <tr>
+                    <th>Symbol ID</th>
+                    <th>Ticks Trained</th>
+                    <th>Last Prediction</th>
+                    <th>Confidence</th>
+                    <th>Accuracy %</th>
+                </tr>
+                </thead>
+                <tbody id="summary-body">
+                <!-- Populated via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Signal Distribution -->
+    <div class="card p-4 mb-4">
+        <h5>📊 Prediction Signal Distribution</h5>
+        <canvas id="signalChart" height="100"></canvas>
+    </div>
+
+    <!-- Accuracy Over Time -->
+    <div class="card p-4 mb-5">
+        <h5>📈 Accuracy Trend (Last N Evaluations)</h5>
+        <canvas id="accuracyChart" height="100"></canvas>
+    </div>
+</div>
+
+<script>
+    async function fetchDashboardMetrics() {
+        try {
+            const res = await fetch('/dashboard/metrics');
+            return await res.json();
+        } catch (e) {
+            console.error("Error fetching dashboard metrics", e);
+            return null;
+        }
+    }
+
+    function renderSymbolSummary(data) {
+        const tbody = document.getElementById("summary-body");
+        tbody.innerHTML = "";
+        data.symbolSummary.forEach(row => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${row.symbolId}</td>
+                    <td>${row.tickCount}</td>
+                    <td>${row.lastPrediction}</td>
+                    <td>${row.confidence.toFixed(2)}</td>
+                    <td>${(row.accuracy * 100).toFixed(1)}%</td>
+                </tr>
+            `;
+        });
+    }
+
+    function renderSignalChart(data) {
+        new Chart(document.getElementById("signalChart"), {
+            type: 'doughnut',
+            data: {
+                labels: ['BUY', 'SELL', 'HOLD'],
+                datasets: [{
+                    data: [data.buy, data.sell, data.hold],
+                    backgroundColor: ['#28a745', '#dc3545', '#6c757d'],
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    function renderAccuracyChart(data) {
+        new Chart(document.getElementById("accuracyChart"), {
+            type: 'line',
+            data: {
+                labels: data.timestamps,
+                datasets: [{
+                    label: 'Accuracy %',
+                    data: data.values.map(v => v * 100),
+                    fill: false,
+                    borderColor: '#007bff',
+                    tension: 0.3
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true, max: 100 }
+                }
+            }
+        });
+    }
+
+    async function initDashboard() {
+        const metrics = await fetchDashboardMetrics();
+        if (!metrics) return;
+
+        renderSymbolSummary(metrics);
+        renderSignalChart(metrics.signalDistribution);
+        renderAccuracyChart(metrics.accuracyTrend);
+    }
+
+    window.addEventListener('DOMContentLoaded', initDashboard);
+</script>
+
+</body>
+</html>

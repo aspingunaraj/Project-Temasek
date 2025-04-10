@@ -1,4 +1,4 @@
-package org.example.dataAnalysis;
+package org.example.dataAnalysis.depthStrategy;
 
 import org.example.websocket.model.DepthPacket;
 import org.example.websocket.model.Tick;

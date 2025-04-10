@@ -1,7 +1,7 @@
 package org.example.tradeGovernance;
 
 import org.example.Main;
-import org.example.dataAnalysis.StrategyOne;
+import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.tradeGovernance.model.Order;
 import org.example.tradeGovernance.model.Position;
 import java.util.Comparator;
