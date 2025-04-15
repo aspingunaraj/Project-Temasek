@@ -287,7 +287,7 @@
             const keyword = document.getElementById("log-search").value.trim().toLowerCase();
             const filtered = keyword ? allLogs.filter(log => log.toLowerCase().includes(keyword)) : allLogs;
             const container = document.getElementById("logs-container");
-            container.innerText = filtered.join('<br>');
+
             container.scrollTop = container.scrollHeight;
         }
 

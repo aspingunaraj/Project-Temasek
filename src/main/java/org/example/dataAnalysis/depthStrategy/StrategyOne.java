@@ -27,7 +27,7 @@ public class StrategyOne {
     );
     private static final String TRAINING_DATA_DIR = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/";
     private static final String MODEL_DIR = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/";
-    private static final int MAX_TICKS_TO_TRACK = 200;
+    private static final int MAX_TICKS_TO_TRACK = 200000;
     private static final int MIN_DATA_POINTS_REQUIRED = 10;
     private static final double MIN_CONFIDENCE_THRESHOLD = 0.75;
 

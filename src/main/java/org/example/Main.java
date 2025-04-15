@@ -105,7 +105,7 @@ public class Main {
         tradeAnalysis.squareOffAllOpenPositions();
     }
 
-    @Scheduled(fixedDelay = 10000)
+    @Scheduled(fixedDelay = 30000)
     public void scheduleModelTraining() {
         try {
             StrategyOne.trainAllModels();
