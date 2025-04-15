@@ -14,6 +14,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -131,7 +132,44 @@ public class ApiController {
         }
     }
 
+    @Controller
+    public class TrainingPageController {
 
+        @GetMapping("/trainingdata")
+        public String viewSummaryPage(Model model) {
+            return "trainingdata";  // Corresponds to strategy-summary.html
+        }
+    }
+
+
+    @GetMapping("/api/training-data/{strategy}")
+    @ResponseBody
+    public List<Map<String, String>> getTrainingData(@PathVariable String strategy) {
+        List<Map<String, String>> result = new ArrayList<>();
+        File file = new File(TRAINING_DATA_DIR + strategy + ".csv");
+
+        if (!file.exists()) return result;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            boolean isHeader = true;
+            while ((line = reader.readLine()) != null) {
+                if (isHeader) { isHeader = false; continue; }
+                String[] parts = line.split(",");
+                if (parts.length < 3) continue;
+
+                Map<String, String> row = new LinkedHashMap<>();
+                row.put("timestamp", parts[0]);
+                row.put("feature", parts[1]);
+                row.put("label", parts[2]);
+                result.add(row);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return result;
+    }
 
 
 }

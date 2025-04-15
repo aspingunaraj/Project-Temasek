@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Strategy Training Data Viewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(to right, #e0f7fa, #ffffff);
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .ribbon-header {
+            background: linear-gradient(to right, #2196f3, #21cbf3);
+            padding: 1.5rem;
+            color: white;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .label-success {
+            color: #fff;
+            background-color: #28a745;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .label-failure {
+            color: #fff;
+            background-color: #dc3545;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .label-hold {
+            color: #000;
+            background-color: #ffc107;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+<div class="ribbon-header">📊 Strategy Training Data Viewer</div>
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label for="strategySelector" class="form-label">Select Strategy:</label>
+            <select id="strategySelector" class="form-select">
+                <option selected disabled>Select a strategy</option>
+                <option value="orderBookPressure">Order Book Pressure</option>
+                <option value="depthImbalance">Depth Imbalance</option>
+                <option value="depthConvexity">Depth Convexity</option>
+                <option value="bidAskSpread">Bid-Ask Spread</option>
+                <option value="top5Weight">Top 5 Weighted Pressure</option>
+                <option value="volumeAtPrice">Volume at Price</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="table-responsive fade-in">
+        <table class="table table-bordered table-striped table-hover align-middle">
+            <thead class="table-light">
+            <tr>
+                <th>Timestamp</th>
+                <th>Feature</th>
+                <th>Label</th>
+            </tr>
+            </thead>
+            <tbody id="trainingDataBody">
+            <tr><td colspan="3" class="text-center text-muted">Please select a strategy to load data.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    document.getElementById("strategySelector").addEventListener("change", function () {
+        const strategy = this.value;
+        const tbody = document.getElementById("trainingDataBody");
+
+        fetch(`/api/training-data/${strategy}`)
+            .then(res => res.json())
+            .then(data => {
+                tbody.innerHTML = "";
+
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted">No training data found for "${strategy}"</td></tr>`;
+                    return;
+                }
+
+                data.forEach(row => {
+                    const labelClass =
+                        row.label.includes("SUCCESS") ? "label-success" :
+                        row.label.includes("FAILURE") ? "label-failure" : "label-hold";
+
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${new Date(Number(row.timestamp)).toLocaleString()}</td>
+                        <td>${parseFloat(row.feature).toFixed(5)}</td>
+                        <td><span class="${labelClass}">${row.label}</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(() => {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-danger text-center">⚠️ Error loading data. Please try again.</td></tr>`;
+            });
+    });
+</script>
+</body>
+</html>

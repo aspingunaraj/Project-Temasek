@@ -1,92 +1,123 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Temasek KKR</title>
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Google Fonts: Roboto -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(to bottom, #f0f0f0, #ffffff);
-            color: #333333;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+            color: #202124;
             margin: 0;
             padding: 0;
         }
 
-        .ribbon-header {
-            background: linear-gradient(to right, #a1c4fd, #c2e9fb);
+        /* Header */
+        .header {
+            background-color: #1a73e8;
+            color: #ffffff;
             padding: 2rem;
-            color: #333333;
             text-align: center;
-            border-bottom: 4px solid #3498db;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        .ribbon-header h1 {
-            font-size: 2.5rem;
-            font-weight: 600;
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 500;
             margin: 0;
         }
 
+        /* Container */
         .container-fluid {
-            padding-left: 2rem;
-            padding-right: 2rem;
+            padding: 2rem;
         }
 
+        /* Card Styling */
         .card-custom {
             background-color: #ffffff;
-            border: 2px solid #cccccc;
-            border-radius: 15px;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-            padding: 2rem;
-            margin-bottom: 2.5rem;
-            transition: all 0.3s ease;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            transition: box-shadow 0.2s ease;
         }
 
         .card-custom:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
         }
 
+        /* Buttons */
         .btn {
-            transition: all 0.3s ease;
             border-radius: 8px;
             padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .btn-primary {
-            background-color: #3498db;
-            border-color: #3498db;
+            background-color: #1a73e8;
+            border-color: #1a73e8;
         }
 
         .btn-primary:hover {
-            background-color: #2980b9;
-            box-shadow: 0 0 10px #3498db, 0 0 20px #3498db;
+            background-color: #1557b0;
+            box-shadow: 0 2px 8px rgba(26, 115, 232, 0.4);
         }
 
-        .btn-outline-success:hover {
-            box-shadow: 0 0 10px #28a745, 0 0 20px #28a745;
-        }
-
-        .btn-outline-info:hover {
-            box-shadow: 0 0 10px #17a2b8, 0 0 20px #17a2b8;
-        }
-
-        .btn-outline-dark:hover {
-            box-shadow: 0 0 10px #343a40, 0 0 20px #343a40;
+        .btn-outline-primary {
+            border-color: #1a73e8;
+            color: #1a73e8;
         }
 
         .btn-outline-primary:hover {
-            box-shadow: 0 0 10px #007bff, 0 0 20px #007bff;
+            background-color: #e8f0fe;
+            color: #1a73e8;
         }
 
+        .btn-outline-success:hover {
+            background-color: #e6f4ea;
+            color: #34a853;
+        }
+
+        .btn-outline-warning:hover {
+            background-color: #fef7e0;
+            color: #fbbc04;
+        }
+
+        .btn-outline-secondary:hover {
+            background-color: #f1f3f4;
+            color: #5f6368;
+        }
+
+        /* Form Elements */
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #dadce0;
+            background-color: #ffffff;
+            color: #202124;
+            padding: 0.75rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.1);
+            background-color: #ffffff;
+        }
+
+        /* Terminal Styling */
         .terminal-header {
-            background-color: #333;
-            padding: 8px;
-            border-top-left-radius: 5px;
-            border-top-right-radius: 5px;
+            background-color: #f1f3f4;
+            padding: 0.75rem;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
             display: flex;
             align-items: center;
         }
@@ -103,250 +134,250 @@
             margin-right: 5px;
         }
 
-        .red { background-color: #ff5f56; }
-        .yellow { background-color: #ffbd2e; }
-        .green { background-color: #27c93f; }
+        .red { background-color: #ea4335; }
+        .yellow { background-color: #fbbc04; }
+        .green { background-color: #34a853; }
 
         .terminal-title {
-            color: #e0e0e0;
+            color: #5f6368;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        #logs-container {
+            background-color: #202124;
+            color: #8ab4f8;
+            font-family: 'Roboto Mono', monospace;
+            padding: 1rem;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            container.innerHTML = filtered.join('<br>');
+            white-space: pre-wrap;
             font-size: 0.9rem;
         }
 
-        #logs-container {
-            background-color: #000;
-            color: #00ff00;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 1rem;
-            border: 1px solid #333;
-            border-bottom-left-radius: 5px;
-            border-bottom-right-radius: 5px;
-            height: 300px;
-            overflow: auto;
-        }
-
-        #logs-container {
-    white-space: pre-wrap;     /* Ensures spacing and line breaks are preserved */
-    font-variant-ligatures: none;  /* Prevents unexpected font behavior */
-    tab-size: 4;               /* Optional: set tab width if tabs are used */
-}
-
-
-        pre {
-            background-color: #f9f9f9;
-            border: 1px solid #dddddd;
-            border-radius: 5px;
-            padding: 1rem;
-            overflow-x: auto;
-            color: #333333;
-        }
-
+        /* Alerts */
         .alert {
             border-radius: 8px;
+            border: none;
+            background-color: #e8f0fe;
+            color: #1967d2;
         }
 
-        .form-select, .form-control {
-            background-color: #ffffff;
-            color: #333333;
-            border: 1px solid #dddddd;
+        .alert-success {
+            background-color: #e6f4ea;
+            color: #34a853;
         }
 
-        .form-select:focus, .form-control:focus {
-            background-color: #ffffff;
-            color: #333333;
-            border-color: #3498db;
-            box-shadow: 0 0 5px rgba(52,152,219,0.5);
+        .alert-warning {
+            background-color: #fef7e0;
+            color: #fbbc04;
+        }
+
+        .alert-danger {
+            background-color: #fce8e6;
+            color: #ea4335;
+        }
+
+        /* Typography */
+        h5 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: #202124;
         }
 
         .text-muted {
-            color: #6c757d !important;
+            color: #5f6368 !important;
+        }
+
+        pre {
+            background-color: #f1f3f4;
+            border-radius: 8px;
+            padding: 1rem;
+            color: #202124;
+            font-size: 0.9rem;
         }
     </style>
-    </head>
-    <body>
-    <div class="ribbon-header w-100 mb-5">
-        <h1><i class="fas fa-rocket me-2"></i> Project Temasek KKR</h1>
-    </div>
+</head>
+<body>
+<!-- Header -->
+<div class="header w-100 mb-4">
+    <h1><i class="fas fa-rocket me-2"></i> Project Temasek KKR</h1>
+</div>
 
-    <div class="container-fluid">
-        <div class="row g-4">
-            <!-- Login Card -->
-            <div class="col-12">
-                <div class="card-custom">
-                    <h5 class="mb-4 text-center"><i class="fas fa-lock me-2"></i> Login</h5>
-                    <form th:action="@{'https://login.paytmmoney.com/merchant-login'}" method="get">
-                        <input type="hidden" name="apiKey" th:value="1a2231a035f44b5a828fdcc3757fdac2"/>
-                        <input type="hidden" name="state" th:value="7256b4240b1446598858722e58950cb3"/>
-                        <div class="d-grid mb-3">
-                            <button type="submit" class="btn btn-primary"><i class="fas fa-sign-in-alt me-2"></i> Login with Paytm Money</button>
-                        </div>
-                    </form>
-                    <div class="alert alert-danger mt-3 d-none" id="token-alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Token expired. <a href="/" class="alert-link">Regenerate it</a>.
-                    </div>
-                    <div class="mb-3">
-                        <label for="modeSelector" class="form-label"><i class="fas fa-map-marker-alt me-2"></i> Market Mode:</label>
-                        <select class="form-select" id="modeSelector">
-                            <option value="live">Live Market</option>
-                            <option value="simulated">Simulation</option>
-                        </select>
-                    </div>
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div id="currentMode" class="text-muted small">Detecting mode...</div>
-                        <button class="btn btn-sm btn-outline-info" onclick="refreshMarketMode()"><i class="fas fa-sync-alt me-2"></i> Refresh Mode</button>
-                    </div>
-                    <div id="mode" class="text-muted small text-center">Default: Live Market</div>
-                    <div class="d-grid mt-3">
-                        <button class="btn btn-outline-primary" onclick="startWebSocket()"><i class="fas fa-satellite-dish me-2"></i> Start WebSocket</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Depth Strategy Card -->
-            <div class="col-12">
-                <div class="card-custom">
-                    <h5 class="mb-4 text-center"><i class="fas fa-book me-2"></i> Depth Strategy</h5>
+<!-- Main Content -->
+<div class="container-fluid">
+    <div class="row g-4">
+        <!-- Login Card -->
+        <div class="col-12">
+            <div class="card-custom">
+                <h5 class="mb-4 text-center"><i class="fas fa-lock me-2"></i> Login</h5>
+                <form action="https://login.paytmmoney.com/merchant-login" method="get">
+                    <input type="hidden" name="apiKey" value="1a2231a035f44b5a828fdcc3757fdac2"/>
+                    <input type="hidden" name="state" value="7256b4240b1446598858722e58950cb3"/>
                     <div class="d-grid mb-3">
-                        <a href="/strategy-stats" class="btn btn-outline-success"><i class="fas fa-chart-line me-2"></i> View Strategy Stats</a>
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-sign-in-alt me-2"></i> Login with Paytm Money</button>
                     </div>
-                    <div class="d-grid">
-                        <a href="/strategy-outcome-dashboard" class="btn btn-outline-info"><i class="fas fa-chart-bar me-2"></i> Strategy Outcome Dashboard</a>
-                    </div>
+                </form>
+                <div class="alert alert-danger mt-3 d-none" id="token-alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i> Token expired. <a href="/" class="alert-link">Regenerate it</a>.
                 </div>
-                <div class="col-12">
-                    <div class="card-custom">
-                        <h5 class="mb-4 text-center"><i class="fas fa-table me-2"></i> Strategy Summary</h5>
-                        <div class="d-grid">
-                            <a href="/strategy-summary-table" class="btn btn-outline-primary">
-                                <i class="fas fa-eye me-2"></i> View Strategy Summary Table
-                            </a>
-                        </div>
-                    </div>
+                <div class="mb-3">
+                    <label for="modeSelector" class="form-label"><i class="fas fa-map-marker-alt me-2"></i> Market Mode:</label>
+                    <select class="form-select" id="modeSelector">
+                        <option value="live">Live Market</option>
+                        <option value="simulated">Simulation</option>
+                    </select>
                 </div>
-            </div>
-
-            <!-- ML Dashboard Card -->
-            <div class="col-12">
-                <div class="card-custom">
-                    <h5 class="mb-4 text-center"><i class="fas fa-chart-pie me-2"></i> ML Dashboard</h5>
-                    <div class="d-grid">
-                        <a href="/dashboard" class="btn btn-outline-dark"><i class="fas fa-layer-group me-2"></i> Open Model Dashboard</a>
-                    </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div id="currentMode" class="text-muted small">Detecting mode...</div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshMarketMode()"><i class="fas fa-sync-alt me-2"></i> Refresh Mode</button>
                 </div>
-            </div>
-
-            <!-- Logs Section -->
-            <div class="col-12">
-                <div class="card-custom">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                        <input type="text" class="form-control me-2" id="log-search" placeholder="🔍 Filter logs (e.g., BUY, ERROR)">
-                        <button class="btn btn-outline-secondary" onclick="downloadLogs()"><i class="fas fa-download me-2"></i> Export Logs</button>
-                    </div>
-                    <div class="terminal-header">
-                        <div class="window-controls">
-                            <span class="control red"></span>
-                            <span class="control yellow"></span>
-                            <span class="control green"></span>
-                        </div>
-                        <div class="terminal-title">Live Logs</div>
-                    </div>
-                    <div id="logs-container">Connecting...</div>
-                    <div class="text-muted text-center mt-2" id="log-status">🔄 Waiting for connection...</div>
-
-                    <hr>
-                    <h6 class="text-center mb-3"><i class="fas fa-key me-2"></i> Current Access Tokens</h6>
-                    <div class="alert alert-primary"><strong>Access Token:</strong> <pre id="accessToken"></pre></div>
-                    <div class="alert alert-success"><strong>Public Access Token:</strong> <pre id="publicAccessToken"></pre></div>
-                    <div class="alert alert-warning"><strong>Read Access Token:</strong> <pre id="readAccessToken"></pre></div>
+                <div id="mode" class="text-muted small text-center">Default: Live Market</div>
+                <div class="d-grid mt-3">
+                    <button class="btn btn-outline-primary" onclick="startWebSocket()"><i class="fas fa-satellite-dish me-2"></i> Start WebSocket</button>
                 </div>
             </div>
         </div>
+
+        <!-- Strategy Summary Card -->
+        <div class="col-12">
+            <div class="card-custom">
+                <h5 class="mb-4 text-center"><i class="fas fa-table me-2"></i> Strategy Summary</h5>
+                <div class="d-grid">
+                    <a href="/strategy-summary-table" class="btn btn-outline-primary">
+                        <i class="fas fa-eye me-2"></i> View Strategy Summary Table
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Data Viewer Card -->
+        <div class="col-12">
+            <div class="card-custom">
+                <h5 class="mb-4 text-center"><i class="fas fa-database me-2"></i> View Training Data</h5>
+                <div class="d-grid">
+                    <a href="/trainingdata" class="btn btn-outline-warning">
+                        <i class="fas fa-table me-2"></i> Open Training Data Viewer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Section -->
+        <div class="col-12">
+            <div class="card-custom">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                    <input type="text" class="form-control me-2" id="log-search" placeholder="🔍 Filter logs (e.g., BUY, ERROR)">
+                    <button class="btn btn-outline-secondary" onclick="downloadLogs()"><i class="fas fa-download me-2"></i> Export Logs</button>
+                </div>
+                <div class="terminal-header">
+                    <div class="window-controls">
+                        <span class="control red"></span>
+                        <span class="control yellow"></span>
+                        <span class="control green"></span>
+                    </div>
+                    <div class="terminal-title">Live Logs</div>
+                </div>
+                <div id="logs-container">Connecting...</div>
+                <div class="text-muted text-center mt-2" id="log-status">🔄 Waiting for connection...</div>
+
+                <hr>
+                <h6 class="text-center mb-3"><i class="fas fa-key me-2"></i> Current Access Tokens</h6>
+                <div class="alert alert-primary"><strong>Access Token:</strong> <pre id="accessToken"></pre></div>
+                <div class="alert alert-success"><strong>Public Access Token:</strong> <pre id="publicAccessToken"></pre></div>
+                <div class="alert alert-warning"><strong>Read Access Token:</strong> <pre id="readAccessToken"></pre></div>
+            </div>
+        </div>
     </div>
+</div>
 
-    <script>
-        let allLogs = [], socket;
+<!-- Bootstrap JS and Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- JavaScript Logic (Unchanged) -->
+<script>
+    let allLogs = [], socket;
 
-        function connectLogStream() {
-            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const host = window.location.host;
-            const url = `${protocol}://${host}/logs-stream`;
-            socket = new WebSocket(url);
+    function connectLogStream() {
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const host = window.location.host;
+        const url = `${protocol}://${host}/logs-stream`;
+        socket = new WebSocket(url);
 
-            socket.onopen = () => document.getElementById('log-status').innerText = "✅ Connected to log stream";
-            socket.onmessage = (e) => {
-                allLogs.push(e.data);
-                filterLogs();
-            };
-            socket.onclose = () => {
-                document.getElementById('log-status').innerText = "🔌 Disconnected. Reconnecting...";
-                setTimeout(connectLogStream, 3000);
-            };
-            socket.onerror = () => document.getElementById('log-status').innerText = "❌ WebSocket error";
-        }
+        socket.onopen = () => document.getElementById('log-status').innerText = "✅ Connected to log stream";
+        socket.onmessage = (e) => {
+            allLogs.push(e.data);
+            filterLogs();
+        };
+        socket.onclose = () => {
+            document.getElementById('log-status').innerText = "🔌 Disconnected. Reconnecting...";
+            setTimeout(connectLogStream, 3000);
+        };
+        socket.onerror = () => document.getElementById('log-status').innerText = "❌ WebSocket error";
+    }
 
-        function filterLogs() {
-            const keyword = document.getElementById("log-search").value.trim().toLowerCase();
-            const filtered = keyword ? allLogs.filter(log => log.toLowerCase().includes(keyword)) : allLogs;
-            const container = document.getElementById("logs-container");
+    function filterLogs() {
+        const keyword = document.getElementById("log-search").value.trim().toLowerCase();
+        const filtered = keyword ? allLogs.filter(log => log.toLowerCase().includes(keyword)) : allLogs;
+        const container = document.getElementById("logs-container");
 
-            container.scrollTop = container.scrollHeight;
-        }
+        container.scrollTop = container.scrollHeight;
+    }
 
-        function downloadLogs() {
-            const blob = new Blob([allLogs.join('\n')], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "temasek-logs.txt";
-            a.click();
-            URL.revokeObjectURL(url);
-        }
+    function downloadLogs() {
+        const blob = new Blob([allLogs.join('\n')], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "temasek-logs.txt";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
 
-        function startWebSocket() {
-            const mode = document.getElementById("modeSelector").value;
-            document.getElementById("currentMode").innerText = `🔁 Running in ${mode.toUpperCase()} mode`;
+    function startWebSocket() {
+        const mode = document.getElementById("modeSelector").value;
+        document.getElementById("currentMode").innerText = `🔁 Running in ${mode.toUpperCase()} mode`;
 
-            fetch(`/start-websocket?mode=${mode}`)
-                .then(res => res.text())
-                .then(msg => alert("✅ WebSocket started in " + mode + " mode"))
-                .catch(err => alert("❌ Failed to start WebSocket: " + err));
-        }
+        fetch(`/start-websocket?mode=${mode}`)
+            .then(res => res.text())
+            .then(msg => alert("✅ WebSocket started in " + mode + " mode"))
+            .catch(err => alert("❌ Failed to start WebSocket: " + err));
+    }
 
-        function loadTokens() {
-            fetch('/tokens')
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById("accessToken").innerText = data.accessToken || "❌ Not available";
-                    document.getElementById("publicAccessToken").innerText = data.publicAccessToken || "❌ Not available";
-                    document.getElementById("readAccessToken").innerText = data.readAccessToken || "❌ Not available";
-                });
-        }
+    function loadTokens() {
+        fetch('/tokens')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("accessToken").innerText = data.accessToken || "❌ Not available";
+                document.getElementById("publicAccessToken").innerText = data.publicAccessToken || "❌ Not available";
+                document.getElementById("readAccessToken").innerText = data.readAccessToken || "❌ Not available";
+            });
+    }
 
-        function refreshMarketMode() {
-            fetch("/api/current-mode")
-                .then(res => res.text())
-                .then(mode => {
-                    document.getElementById("currentMode").innerText = `🔁 Currently Running in ${mode.toUpperCase()} mode`;
-                })
-                .catch(() => {
-                    document.getElementById("currentMode").innerText = "❌ Error fetching mode";
-                });
-        }
+    function refreshMarketMode() {
+        fetch("/api/current-mode")
+            .then(res => res.text())
+            .then(mode => {
+                document.getElementById("currentMode").innerText = `🔁 Currently Running in ${mode.toUpperCase()} mode`;
+            })
+            .catch(() => {
+                document.getElementById("currentMode").innerText = "❌ Error fetching mode";
+            });
+    }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            connectLogStream();
-            loadTokens();
-            refreshMarketMode();
-            fetch('/token-status')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.expired) document.getElementById("token-alert").classList.remove("d-none");
-                });
-            document.getElementById("log-search").addEventListener("input", filterLogs);
-        });
-    </script>
-    </body>
-    </html>
-
-    #### Key Citations
-    - [Bootstrap 5 Documentation](https://getbootstrap.com/docs/5.3/getting-started/introduction/) - Official guide for Bootstrap 5 grid and utilities.
-    - [Google Fonts Inter](https://fonts.google.com/specimen/Inter) - Source for the Inter font used in the webpage.
+    window.addEventListener('DOMContentLoaded', () => {
+        connectLogStream();
+        loadTokens();
+        refreshMarketMode();
+        fetch('/token-status')
+            .then(res => res.json())
+            .then(data => {
+                if (data.expired) document.getElementById("token-alert").classList.remove("d-none");
+            });
+        document.getElementById("log-search").addEventListener("input", filterLogs);
+    });
+</script>
+</body>
+</html>

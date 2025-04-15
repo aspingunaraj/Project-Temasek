@@ -39,7 +39,6 @@ public class StrategyOne {
         loadAllModels();
     }
 
-    // Computes buy/sell pressure ratio from top level of order book
     private static double computeOrderBookPressureFeature(Tick tick) {
         List<DepthPacket> book = tick.getMbpRowPacket();
         if (book == null || book.isEmpty()) return 0.0;
@@ -47,7 +46,6 @@ public class StrategyOne {
         return top.getSellQuantity() == 0 ? top.getBuyQuantity() : (double) top.getBuyQuantity() / top.getSellQuantity();
     }
 
-    // Calculates depth imbalance ratio across all order book levels
     private static double computeDepthImbalanceFeature(Tick tick) {
         List<DepthPacket> book = tick.getMbpRowPacket();
         int totalBuy = 0, totalSell = 0;
@@ -58,7 +56,6 @@ public class StrategyOne {
         return totalSell == 0 ? totalBuy : (double) (totalBuy - totalSell) / (totalBuy + totalSell);
     }
 
-    // Measures convexity between top two order book levels
     private static double computeDepthConvexityFeature(Tick tick) {
         List<DepthPacket> book = tick.getMbpRowPacket();
         if (book == null || book.size() < 2) return 0.0;
@@ -66,13 +63,11 @@ public class StrategyOne {
         return (top.getBuyQuantity() - next.getBuyQuantity()) - (top.getSellQuantity() - next.getSellQuantity());
     }
 
-    // Computes bid-ask spread from top order book level
     private static double computeBidAskSpreadFeature(Tick tick) {
         List<DepthPacket> book = tick.getMbpRowPacket();
         return (book == null || book.isEmpty()) ? 0.0 : book.get(0).getSellPrice() - book.get(0).getBuyPrice();
     }
 
-    // Computes weighted pressure using top 5 order book levels
     private static double computeTop5WeightedPressureFeature(Tick tick) {
         List<DepthPacket> book = tick.getMbpRowPacket();
         double weightedBuy = 0, weightedSell = 0;
@@ -84,12 +79,10 @@ public class StrategyOne {
         return weightedSell == 0 ? weightedBuy : weightedBuy / weightedSell;
     }
 
-    // Computes the volume concentration at the current price
     private static double computeVolumeAtPriceFeature(Tick tick) {
         return tick.getVolumeTraded() == 0 ? 0.0 : tick.getLastTradedQuantity() / (double) tick.getVolumeTraded();
     }
 
-    // Combines votes from all 6 strategies and applies signal fusion rule
     public static Signal evaluateSignalFusion(Tick tick) {
         Map<String, Double> features = Map.of(
                 "orderBookPressure", computeOrderBookPressureFeature(tick),
@@ -106,83 +99,46 @@ public class StrategyOne {
             String strategy = entry.getKey();
             double feature = entry.getValue();
 
-            Signal signal;
-            if (isModelReady(strategy)) {
-                System.out.println("✅✅✅ Model is Ready ✅✅✅" + " " + strategy );
-                signal = predictStrategySignal(strategy, feature);
-            } else {
-                System.out.println("✅✅✅ Model is not Ready ✅✅✅" + " " + strategy );
-                signal = applyThresholdLogic(strategy, feature);
+            Signal signal = isModelReady(strategy)
+                    ? predictStrategySignal(strategy, feature)
+                    : Signal.HOLD;
+
+            // ✅ Always log the decision for training/outcome tracking
+            pendingDecisions.add(new PendingDecision(
+                    Instant.now().toEpochMilli(),
+                    strategy,
+                    feature,
+                    tick.getLastTradedPrice(),
+                    signal,
+                    0
+            ));
+
+            // ✅ Count vote only if sufficient data is available
+            if (hasMinimumTrainingData(strategy, 110)) {
+                if (signal == Signal.BUY) buyVotes++;
+                if (signal == Signal.SELL) sellVotes++;
             }
-
-            if (signal != Signal.HOLD) {
-                pendingDecisions.add(new PendingDecision(
-                        Instant.now().toEpochMilli(),
-                        strategy,
-                        feature,
-                        tick.getLastTradedPrice(),
-                        signal,
-                        0
-                ));
-            }
-
-            if (signal == Signal.BUY) buyVotes++;
-            if (signal == Signal.SELL) sellVotes++;
-
         }
-
-
 
         if (buyVotes >= 4) return Signal.BUY;
         if (sellVotes >= 4) return Signal.SELL;
         return Signal.HOLD;
     }
 
-    // Applies simple threshold logic for strategies if ML model is not available
-    private static Signal applyThresholdLogic(String strategy, double feature) {
-        return switch (strategy) {
+    private static boolean hasMinimumTrainingData(String strategy, int minRows) {
+        File file = new File(TRAINING_DATA_DIR + strategy + ".csv");
+        if (!file.exists()) return false;
 
-            case "orderBookPressure", "top5Weight" -> {
-                // These generally scale > 1.0 when BUY is dominant
-                if (feature > 1.3) yield Signal.BUY;
-                else if (feature < 0.9) yield Signal.SELL;
-                else yield Signal.HOLD;
-            }
-
-            case "depthImbalance" -> {
-                // Normalized between -1 and +1; near 0 = balance
-                if (feature > 0.2) yield Signal.BUY;
-                else if (feature < -0.2) yield Signal.SELL;
-                else yield Signal.HOLD;
-            }
-
-            case "depthConvexity" -> {
-                // Positive means BUY side stacked, negative = SELL side
-                if (feature > 30) yield Signal.BUY;
-                else if (feature < -30) yield Signal.SELL;
-                else yield Signal.HOLD;
-            }
-
-            case "volumeAtPrice" -> {
-                // High LTP/volume ratio → more aggressive trading
-                if (feature > 0.015) yield Signal.BUY;
-                else if (feature < 0.005) yield Signal.SELL;
-                else yield Signal.HOLD;
-            }
-
-            case "bidAskSpread" -> {
-                if (feature < 0.10) yield Signal.BUY;
-                else if (feature > 0.13) yield Signal.SELL;
-                else yield Signal.HOLD;
-            }
-
-
-            default -> Signal.HOLD;
-        };
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            return reader.lines().skip(1).count() >= minRows;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
 
-    // Checks if training data and model for a strategy are ready
+
+
     private static boolean isModelReady(String strategy) {
         File file = new File(TRAINING_DATA_DIR + strategy + ".csv");
         if (!file.exists()) return false;
@@ -191,22 +147,14 @@ public class StrategyOne {
             long lineCount = reader.lines().skip(1).count();
             boolean modelExists = modelMap.get(strategy) != null;
             boolean headerExists = headerMap.get(strategy) != null;
-
-            boolean ready = lineCount >= MIN_DATA_POINTS_REQUIRED && modelExists && headerExists;
-            System.out.println("✅✅✅ Model Ready Check: " + strategy + " " + ready);
-
-
-            return ready;
+            return lineCount >= MIN_DATA_POINTS_REQUIRED && modelExists && headerExists;
         } catch (IOException e) {
             return false;
         }
     }
 
-
-    // Predicts signal using trained ML model for a strategy
     private static Signal predictStrategySignal(String strategy, double feature) {
         try {
-            System.out.println("✅✅✅✅ PREDICTING THROUGH ML STRATEGY ✅✅✅✅✅");
             Classifier clf = modelMap.get(strategy);
             Instances hdr = headerMap.get(strategy);
             if (clf == null || hdr == null) return Signal.HOLD;
@@ -215,14 +163,14 @@ public class StrategyOne {
             instance.setDataset(hdr);
             instance.setValue(0, feature);
 
-            double prediction = clf.classifyInstance(instance);
+            double predictionIndex = clf.classifyInstance(instance);
             double[] dist = clf.distributionForInstance(instance);
-            String label = hdr.classAttribute().value((int) prediction);
-            double confidence = dist[(int) prediction];
+            double confidence = dist[(int) predictionIndex];
+            String label = hdr.classAttribute().value((int) predictionIndex);
 
             if (confidence >= MIN_CONFIDENCE_THRESHOLD) {
-                if (label.equals("BUY_SUCCESS") || label.equals("BUY_FAILURE")) return Signal.BUY;
-                if (label.equals("SELL_SUCCESS") || label.equals("SELL_FAILURE")) return Signal.SELL;
+                if (label.startsWith("BUY")) return Signal.BUY;
+                if (label.startsWith("SELL")) return Signal.SELL;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -230,41 +178,55 @@ public class StrategyOne {
         return Signal.HOLD;
     }
 
-    // Trains all strategy models from their respective CSV training data
     public static void trainAllModels() {
+        final int MIN_DATA_ROWS_FOR_TRAINING = 100;
+
         for (String strategy : STRATEGIES) {
             try {
                 String csvPath = TRAINING_DATA_DIR + strategy + ".csv";
                 File csvFile = new File(csvPath);
-                if (!csvFile.exists()) continue;
+                if (!csvFile.exists()) {
+                    System.out.println("⚠️ No training file found for: " + strategy);
+                    continue;
+                }
 
+                // Count rows (excluding header)
+                long dataLines = new BufferedReader(new FileReader(csvFile)).lines().skip(1).count();
+                if (dataLines < MIN_DATA_ROWS_FOR_TRAINING) {
+                    System.out.printf("⏳ Skipping %s — only %d rows available (needs %d)%n",
+                            strategy, dataLines, MIN_DATA_ROWS_FOR_TRAINING);
+                    continue;
+                }
+
+                // Load CSV into Instances
                 CSVLoader loader = new CSVLoader();
                 loader.setSource(csvFile);
                 Instances data = loader.getDataSet();
                 data.setClassIndex(data.numAttributes() - 1);
-                if (data.size() < MIN_DATA_POINTS_REQUIRED) continue;
 
+                // Train RandomForest model
                 RandomForest model = new RandomForest();
                 model.buildClassifier(data);
 
+                // Save model
                 try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(MODEL_DIR + strategy + ".model"))) {
                     oos.writeObject(model);
                 }
 
+                // Save ARFF header
                 ArffSaver saver = new ArffSaver();
                 saver.setInstances(data);
                 saver.setFile(new File(MODEL_DIR + strategy + "_header.arff"));
                 saver.writeBatch();
 
-                System.out.println("✅ Trained model for: " + strategy);
+                System.out.println("✅ Model trained successfully for: " + strategy);
             } catch (Exception e) {
-                System.err.println("❌ Training failed for " + strategy + ": " + e.getMessage());
+                System.err.printf("❌ Training failed for %s: %s%n", strategy, e.getMessage());
             }
         }
     }
 
-    // Logs feature and initial predicted label for training purposes
-    // Logs feature and final outcome once trade is resolved
+
     private static void logTrainingData(String strategy, double feature, String finalLabel) {
         String filePath = TRAINING_DATA_DIR + strategy + ".csv";
         File file = new File(filePath);
@@ -273,12 +235,10 @@ public class StrategyOne {
             if (!fileExists) writer.write("timestamp,feature,label\n");
             writer.write(Instant.now().toEpochMilli() + "," + feature + "," + finalLabel + "\n");
         } catch (IOException e) {
-            System.err.println("❌ Error logging training data for " + strategy + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-
-    // Loads all models and their ARFF headers into memory
     private static void loadAllModels() {
         for (String strategy : STRATEGIES) {
             try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(MODEL_DIR + strategy + ".model"))) {
@@ -301,48 +261,46 @@ public class StrategyOne {
             PendingDecision decision = it.next();
             float target, stopLoss;
 
-            // Set TP and SL based on direction
-            if (decision.direction == Signal.BUY) {
-                target = decision.entryPrice * 1.01f;       // +1% target
-                stopLoss = decision.entryPrice * 0.995f;    // -0.5% stop-loss
+            // Set TP and SL based on inferred direction (even if original was HOLD)
+
+            Signal assumedDirection;
+            if (decision.direction == Signal.HOLD) {
+                // Randomly choose between BUY or SELL for HOLD cases
+                assumedDirection = Math.random() < 0.5 ? Signal.BUY : Signal.SELL;
             } else {
-                target = decision.entryPrice * 0.99f;       // -1% target for sell
-                stopLoss = decision.entryPrice * 1.005f;    // +0.5% stop-loss for sell
+                assumedDirection = decision.direction;
+            }
+            if (assumedDirection == Signal.BUY) {
+                target = decision.entryPrice * 1.003f;     // +0.3% profit target
+                stopLoss = decision.entryPrice * 0.9985f;  // -0.15% stop-loss
+            } else {
+                target = decision.entryPrice * 0.997f;     // -0.3% profit target
+                stopLoss = decision.entryPrice * 1.0015f;  // +0.15% stop-loss
             }
 
-            // Increment tick counter for this decision
+
             decision.tickCount++;
 
-            // Determine exit condition
-            boolean hitTarget = (decision.direction == Signal.BUY) ? ltp >= target : ltp <= target;
-            boolean hitStop = (decision.direction == Signal.BUY) ? ltp <= stopLoss : ltp >= stopLoss;
+            boolean hitTarget = (assumedDirection == Signal.BUY) ? ltp >= target : ltp <= target;
+            boolean hitStop = (assumedDirection == Signal.BUY) ? ltp <= stopLoss : ltp >= stopLoss;
             boolean expired = decision.tickCount >= MAX_TICKS_TO_TRACK;
 
-            // If trade is resolved
             if (hitTarget || hitStop || expired) {
                 String label;
 
                 if (hitTarget) {
-                    label = (decision.direction == Signal.BUY) ? "BUY_SUCCESS" : "SELL_SUCCESS";
+                    label = (assumedDirection == Signal.BUY) ? "BUY_SUCCESS" : "SELL_SUCCESS";
                 } else if (hitStop || expired) {
-                    label = (decision.direction == Signal.BUY) ? "BUY_FAILURE" : "SELL_FAILURE";
+                    label = (assumedDirection == Signal.BUY) ? "BUY_FAILURE" : "SELL_FAILURE";
                 } else {
                     label = "HOLD";
                 }
 
-                // Update the log line (overwrite previous 'FAILURE' placeholder)
-
-                // inside evaluateOutcomes
-                logTrainingData(decision.strategyName, decision.feature, label); // ✅ log only once after result is known
-
+                logTrainingData(decision.strategyName, decision.feature, label);
                 it.remove();
             }
         }
     }
-
-
-
-
 
 
     private static class PendingDecision {
@@ -362,5 +320,4 @@ public class StrategyOne {
             this.tickCount = tickCount;
         }
     }
-
 }
