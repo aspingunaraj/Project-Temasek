@@ -1,51 +1,137 @@
 package org.example.controller;
 
+import org.example.config.MarketModeConfig;
 import org.example.dataAnalysis.depthStrategy.StrategyOne;
-import org.example.dataAnalysis.depthStrategy.SignalOutcomeTracker;
+import org.example.websocket.WebSocketService;
+import org.example.websocket.model.StrategySummary;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
-import java.util.Arrays;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 @Controller
 public class ApiController {
 
-    @GetMapping({"/strategy-stats", "/strategy-stats.html"})
-    public String showStrategyStats(Model model) {
-        model.addAttribute("strategyStats", StrategyOne.getStrategyStats());
-        return "strategy-stats";
+    private final WebSocketService webSocketService;
+
+    // ✅ Constructor injection
+    @Autowired
+    public ApiController(WebSocketService webSocketService) {
+        this.webSocketService = webSocketService;
     }
+
+
 
     @PostMapping("/update-thresholds")
     @ResponseBody
     public String updateThresholds(@RequestBody Map<String, Double> thresholds) {
-        StrategyOne.updateThresholds(thresholds);
+
         return "Thresholds updated successfully!";
     }
 
     @GetMapping("/current-thresholds")
     @ResponseBody
     public Map<String, Double> getCurrentThresholds() {
-        return StrategyOne.getThresholds();
+        return null;
     }
 
-    @GetMapping({"/dashboard"})
+    @GetMapping("/dashboard")
     public String dashboardPage() {
         return "dashboard";
     }
 
-    @GetMapping({"/signal-outcomes", "/signal-outcomes.html"})
-    public String signalOutcomesPage() {
-        return "signal-outcomes";
+    @GetMapping("/strategy-outcome-dashboard")
+    public String strategyOutcomeDashboard() {
+        return "strategy-outcome-dashboard";
     }
 
-    @GetMapping("/api/signal-outcomes")
+    @GetMapping("/api/current-mode")
     @ResponseBody
-    public List<SignalOutcomeTracker.SignalOutcome> getSignalOutcomes() {
-        return SignalOutcomeTracker.getCompletedSignals();
+    public String getCurrentMode() {
+        return MarketModeConfig.isSimulationMode() ? "simulated" : "live";
     }
+
+    private static final List<String> STRATEGIES = List.of(
+            "orderBookPressure", "depthImbalance", "depthConvexity",
+            "bidAskSpread", "top5Weight", "volumeAtPrice"
+    );
+
+    private static final String TRAINING_DATA_DIR = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/";
+
+    @GetMapping("/api/strategy-summary")
+    @ResponseBody
+    public List<StrategySummary> getStrategySummary() {
+        List<StrategySummary> result = new ArrayList<>();
+
+        for (String strategy : STRATEGIES) {
+            File file = new File(TRAINING_DATA_DIR + strategy + ".csv");
+            if (!file.exists()) continue;
+
+            int buySuccess = 0, buyFail = 0, sellSuccess = 0, sellFail = 0;
+
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String line;
+                boolean isHeader = true;
+                while ((line = reader.readLine()) != null) {
+                    if (isHeader) { isHeader = false; continue; }
+                    String[] parts = line.split(",");
+                    if (parts.length < 3) continue;
+                    switch (parts[2].trim()) {
+                        case "BUY_SUCCESS" -> buySuccess++;
+                        case "BUY_FAILURE" -> buyFail++;
+                        case "SELL_SUCCESS" -> sellSuccess++;
+                        case "SELL_FAILURE" -> sellFail++;
+                    }
+                }
+
+                // Add BUY row
+                int buyTotal = buySuccess + buyFail;
+                StrategySummary buy = new StrategySummary();
+                buy.setStrategy(strategy);
+                buy.setSignal("BUY");
+                buy.setSuccess(buySuccess);
+                buy.setFailure(buyFail);
+                buy.setTotal(buyTotal);
+                buy.setSuccessRate(buyTotal == 0 ? "0%" : String.format("%.2f%%", 100.0 * buySuccess / buyTotal));
+                result.add(buy);
+
+                // Add SELL row
+                int sellTotal = sellSuccess + sellFail;
+                StrategySummary sell = new StrategySummary();
+                sell.setStrategy(strategy);
+                sell.setSignal("SELL");
+                sell.setSuccess(sellSuccess);
+                sell.setFailure(sellFail);
+                sell.setTotal(sellTotal);
+                sell.setSuccessRate(sellTotal == 0 ? "0%" : String.format("%.2f%%", 100.0 * sellSuccess / sellTotal));
+                result.add(sell);
+
+            } catch (IOException e) {
+                e.printStackTrace(); // or log
+            }
+        }
+
+        return result;
+    }
+
+    @Controller
+    public class StrategySummaryPageController {
+
+        @GetMapping("/strategy-summary-table")
+        public String viewSummaryPage(Model model) {
+            return "strategyonesummary";  // Corresponds to strategy-summary.html
+        }
+    }
+
+
+
+
 }

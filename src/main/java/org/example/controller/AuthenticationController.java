@@ -1,6 +1,7 @@
 package org.example.controller;
 
 import org.example.Main;
+import org.example.config.MarketModeConfig;
 import org.example.tokenStorage.TokenInfo;
 import org.example.tokenStorage.TokenStorageService;
 import org.example.websocket.WebSocketService;
@@ -25,13 +26,10 @@ public class AuthenticationController {
 
     @GetMapping("/start-websocket")
     @ResponseBody
-    public String startWebSocketManually() {
-        try {
-            webSocketService.startWebSocket();
-            return "✅ WebSocket initialization triggered.";
-        } catch (Exception e) {
-            return "❌ Error: " + e.getMessage();
-        }
+    public String startWebSocket(@RequestParam(defaultValue = "live") String mode) {
+        MarketModeConfig.setSimulationMode("simulated".equalsIgnoreCase(mode));
+        webSocketService.startWebSocket();  // ✅ This will now resolve
+        return "WebSocket started in " + mode + " mode.";
     }
 
     @GetMapping("/")

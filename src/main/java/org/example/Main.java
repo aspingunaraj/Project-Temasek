@@ -1,6 +1,6 @@
 package org.example;
 
-import org.example.logger.LogWebSocketHandler;
+import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.logger.WebSocketLogRedirector;
 import org.example.tokenStorage.TokenInfo;
 import org.example.tokenStorage.TokenStorageService;
@@ -15,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.io.PrintStream;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -45,6 +46,7 @@ public class Main {
         // Redirect logs to WebSocket and console
         System.setOut(new WebSocketLogRedirector());
         System.setErr(new WebSocketLogRedirector());
+
         System.out.println("🚀 Application Started");
         System.out.println("🚀 Backend started and log streaming is active");
         TokenInfo saved = new TokenStorageService().loadTokens();
@@ -102,6 +104,18 @@ public class Main {
         TradeAnalysis tradeAnalysis = new TradeAnalysis();
         tradeAnalysis.squareOffAllOpenPositions();
     }
+
+    @Scheduled(fixedDelay = 10000)
+    public void scheduleModelTraining() {
+        try {
+            StrategyOne.trainAllModels();
+            System.out.println("📊 Model training executed successfully at " + Instant.now());
+        } catch (Exception e) {
+            System.err.println("❌ Error during model training: " + e.getMessage());
+        }
+    }
+
+
 
 
 

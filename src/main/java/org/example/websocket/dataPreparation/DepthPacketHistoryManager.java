@@ -31,19 +31,10 @@ public class DepthPacketHistoryManager {
         // ✅ Add to evaluation history (rolling 500)
         tickHistory.putIfAbsent(securityId, new LinkedList<>());
         LinkedList<Tick> evalHistory = tickHistory.get(securityId);
-        if (evalHistory.size() == 500) evalHistory.removeFirst();
+        if (evalHistory.size() == 100) evalHistory.removeFirst();
         evalHistory.addLast(tick);
 
-        // ✅ Add to training buffer
-        trainingTickBuffer.putIfAbsent(securityId, new LinkedList<>());
-        LinkedList<Tick> trainingHistory = trainingTickBuffer.get(securityId);
-        trainingHistory.addLast(tick);
 
-        // ✅ Trigger training if buffer is full
-        if (trainingHistory.size() >= 300) {
-            onReadyToTrain.run();
-            trainingTickBuffer.remove(securityId);
-        }
     }
 
     /**
