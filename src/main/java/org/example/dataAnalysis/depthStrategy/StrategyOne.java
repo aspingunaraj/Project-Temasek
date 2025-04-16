@@ -29,7 +29,7 @@ public class StrategyOne {
     private static final String MODEL_DIR = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/";
     private static final int MAX_TICKS_TO_TRACK = 200000;
     private static final int MIN_DATA_POINTS_REQUIRED = 10;
-    private static final double MIN_CONFIDENCE_THRESHOLD = 0.75;
+    private static final double MIN_CONFIDENCE_THRESHOLD = 0.85;
 
     private static final List<PendingDecision> pendingDecisions = new ArrayList<>();
     private static final Map<String, Classifier> modelMap = new HashMap<>();
@@ -231,13 +231,41 @@ public class StrategyOne {
         String filePath = TRAINING_DATA_DIR + strategy + ".csv";
         File file = new File(filePath);
         boolean fileExists = file.exists();
+
         try (FileWriter writer = new FileWriter(file, true)) {
             if (!fileExists) writer.write("timestamp,feature,label\n");
             writer.write(Instant.now().toEpochMilli() + "," + feature + "," + finalLabel + "\n");
         } catch (IOException e) {
             e.printStackTrace();
         }
+        // ✅ Enforce a max of 5000 rows
+        trimTrainingFileIfNeeded(filePath, 5000);
     }
+
+    private static void trimTrainingFileIfNeeded(String filePath, int maxRows) {
+        try {
+            List<String> lines = new ArrayList<>();
+            try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+                lines = reader.lines().toList();
+            }
+
+            if (lines.size() > maxRows + 1) { // +1 for header
+                List<String> trimmed = new ArrayList<>();
+                trimmed.add(lines.get(0)); // header
+                trimmed.addAll(lines.subList(lines.size() - maxRows, lines.size()));
+
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath, false))) {
+                    for (String line : trimmed) {
+                        writer.write(line);
+                        writer.newLine();
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     private static void loadAllModels() {
         for (String strategy : STRATEGIES) {

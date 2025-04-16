@@ -5,18 +5,21 @@ import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.websocket.WebSocketService;
 import org.example.websocket.model.StrategySummary;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 @Controller
 public class ApiController {
@@ -170,6 +173,39 @@ public class ApiController {
 
         return result;
     }
+
+    @GetMapping("/api/read-compressed-ticks")
+    @ResponseBody
+    public ResponseEntity<String> readCompressedFile() {
+        Path path = Paths.get("src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl.gz");
+
+        try (GZIPInputStream gis = new GZIPInputStream(Files.newInputStream(path));
+             BufferedReader reader = new BufferedReader(new InputStreamReader(gis))) {
+
+            StringBuilder content = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+
+            return ResponseEntity.ok(content.toString());
+
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to read compressed file: " + e.getMessage());
+        }
+    }
+
+    @Controller
+    public class PageRedirectController {
+
+        @GetMapping("/read-compressed")
+        public String showCompressedTickViewer() {
+            return "read-compressed"; // resolves to src/main/resources/templates/read-compressed.html if using Thymeleaf
+        }
+    }
+
+
 
 
 }

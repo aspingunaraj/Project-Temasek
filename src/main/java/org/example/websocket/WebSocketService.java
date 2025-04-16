@@ -1,5 +1,7 @@
 package org.example.websocket;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.example.Main;
 import org.example.config.MarketModeConfig;
 import org.example.dataAnalysis.StrategyManager;
@@ -13,9 +15,11 @@ import org.example.websocket.model.PreferenceDto;
 import org.example.websocket.model.Tick;
 import org.springframework.stereotype.Service;
 
+import java.io.*;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.zip.GZIPOutputStream;
 
 @Service
 public class WebSocketService {
@@ -107,6 +111,7 @@ public class WebSocketService {
 
         if (tick.getMbpRowPacket() != null && !tick.getMbpRowPacket().isEmpty()) {
             historyManager.addTick(tick, () -> checkAndTrainModelIfReady(symbolId));
+            appendCompressedTick(tick); // ✅ Add this line
         }
 
         long now = System.currentTimeMillis();
@@ -126,6 +131,34 @@ public class WebSocketService {
             new OrderServices().orderManagement(String.valueOf(symbolId), action, tick.getLastTradedPrice());
         }
     }
+
+    private static final String TICK_FILE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl";
+    private static final ObjectMapper mapper = new ObjectMapper()
+            .disable(SerializationFeature.INDENT_OUTPUT); // compact JSON
+    private static final String COMPRESSED_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl.gz";
+
+    private static final long MAX_COMPRESSED_FILE_SIZE_BYTES = 50L * 1024 * 1024; // 50 MB
+
+    private void appendCompressedTick(Tick tick) {
+        File file = new File(COMPRESSED_PATH);
+        if (file.exists() && file.length() > MAX_COMPRESSED_FILE_SIZE_BYTES) {
+            System.out.println("⚠️ Skipping tick logging. Compressed file has reached 50 MB.");
+            return;
+        }
+
+        try (FileOutputStream fos = new FileOutputStream(file, true);
+             GZIPOutputStream gos = new GZIPOutputStream(fos);
+             OutputStreamWriter osw = new OutputStreamWriter(gos);
+             BufferedWriter bw = new BufferedWriter(osw)) {
+
+            String json = mapper.writeValueAsString(tick);
+            bw.write(json);
+            bw.newLine();
+        } catch (IOException e) {
+            System.err.println("❌ Error writing compressed tick: " + e.getMessage());
+        }
+    }
+
 
     private void checkAndTrainModelIfReady(int symbolId) {
         List<Tick> history = DepthPacketHistoryManager.getInstance().getTickHistory(symbolId);
