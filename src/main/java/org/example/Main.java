@@ -105,15 +105,6 @@ public class Main {
         tradeAnalysis.squareOffAllOpenPositions();
     }
 
-    @Scheduled(fixedDelay = 30000)
-    public void scheduleModelTraining() {
-        try {
-            StrategyOne.trainAllModels();
-            System.out.println("📊 Model training executed successfully at " + Instant.now());
-        } catch (Exception e) {
-            System.err.println("❌ Error during model training: " + e.getMessage());
-        }
-    }
 
 
 
