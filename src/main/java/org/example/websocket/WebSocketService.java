@@ -123,7 +123,7 @@ public class WebSocketService {
         lastEvaluated.put(symbolId, now);
 
         List<Tick> recentTicks = historyManager.getTickHistory(symbolId);
-        StrategyOne.Signal signal = StrategyManager.strategySelector(recentTicks, symbolId);
+        StrategyOne.Signal signal = StrategyManager.strategySelector(tick, symbolId);
 
         TradeAnalysis.Action action = new TradeAnalysis().evaluateTradeAction(symbolId, signal, Main.accessToken);
 

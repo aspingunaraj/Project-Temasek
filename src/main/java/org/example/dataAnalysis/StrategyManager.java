@@ -3,30 +3,46 @@ package org.example.dataAnalysis;
 import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.websocket.model.Tick;
 
-import java.time.*;
-import java.util.List;
+import java.util.*;
+import static org.example.dataAnalysis.depthStrategy.machineLearning.backTesting.BackTesterUtility.*;
 
 public class StrategyManager {
 
+    // Number of ticks to accumulate before evaluating the signal
+    private static final int AGGREGATION_WINDOW = 10;
+
+    // Buffer to store ticks per symbol. Each symbol maintains its own rolling tick list
+    private static final Map<Integer, List<Tick>> tickBufferMap = new HashMap<>();
+
     /**
-     * Selects and runs the per-strategy ML voting strategy based on market hours.
+     * Receives a single tick and accumulates it into a buffer specific to the symbolId.
+     * Once the buffer reaches the AGGREGATION_WINDOW size (e.g., 10 ticks),
+     * it aggregates them into a single representative Tick and evaluates the trading signal.
+     * After evaluation, the buffer for that symbol is cleared to start a new cycle.
      *
-     * @param recentTicks List of recent ticks for a symbol
-     * @param symbolId    ID of the symbol being evaluated
-     * @return Signal (BUY/SELL/HOLD) from the chosen strategy
+     * @param tick      The latest tick received for a symbol
+     * @param symbolId  The unique ID representing the security/symbol
+     * @return Signal (BUY/SELL/HOLD) based on the aggregated tick data
      */
-    public static StrategyOne.Signal strategySelector(List<Tick> recentTicks, int symbolId) {
-        if (recentTicks == null || recentTicks.isEmpty()) return StrategyOne.Signal.HOLD;
+    public static StrategyOne.Signal strategySelector(Tick tick, int symbolId) {
+        if (tick == null) return StrategyOne.Signal.HOLD;
 
-        // Step 1: Take the latest tick for signal evaluation
-        Tick latestTick = recentTicks.get(recentTicks.size() - 1);
+        // Add the incoming tick to the buffer for this symbol
+        tickBufferMap.computeIfAbsent(symbolId, k -> new ArrayList<>()).add(tick);
+        List<Tick> buffer = tickBufferMap.get(symbolId);
 
-        // Step 2: Evaluate signal from StrategyOne (BUY/SELL/HOLD)
-        StrategyOne.Signal signal = StrategyOne.evaluateSignalFusion(latestTick);
+        // If the buffer has not yet reached the required size, return HOLD
+        if (buffer.size() < AGGREGATION_WINDOW) {
+            return StrategyOne.Signal.HOLD;
+        }
 
-        // Step 3: Always track outcomes (to log TP/SL for past trades)
-        StrategyOne.evaluateOutcomes(latestTick);
+        // Aggregate the buffered ticks into a single Tick object
+        Tick aggregatedTick = aggregateTicks(buffer);
 
-        return signal;
+        // Reset the buffer for this symbol to begin collecting the next set
+        tickBufferMap.put(symbolId, new ArrayList<>());
+
+        // Evaluate and return the signal using the aggregated Tick
+        return StrategyOne.evaluateSignal(aggregatedTick);
     }
 }

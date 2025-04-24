@@ -118,7 +118,6 @@ public class OrderServices {
 
             OrderBookResponse body = response.getBody();
             if (response.getStatusCode().is2xxSuccessful() && body != null) {
-                System.out.println("📘 Order Book Fetched: " + body.getData().size() + " orders");
                 return body;
             } else {
                 System.out.println("⚠️ Order Book Fetch Failed - Status: " + response.getStatusCode());
