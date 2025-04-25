@@ -24,10 +24,13 @@ public class StrategyOne {
         double closePrice = tick.getClose();
 
         if (imbalance >= IMBALANCE_THRESHOLD && closePrice > openPrice) {
+            System.out.println("Buy Signal");
             return Signal.BUY;
         } else if (imbalance <= -IMBALANCE_THRESHOLD && openPrice > closePrice) {
+            System.out.println("Sell Signal");
             return Signal.SELL;
         } else {
+            System.out.println("Hold Signal");
             return Signal.HOLD;
         }
     }
