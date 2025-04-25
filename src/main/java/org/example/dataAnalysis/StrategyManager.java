@@ -32,6 +32,7 @@ public class StrategyManager {
         List<Tick> buffer = tickBufferMap.get(symbolId);
 
         // If the buffer has not yet reached the required size, return HOLD
+        System.out.println("buffer size " + buffer.size());
         if (buffer.size() < AGGREGATION_WINDOW) {
             return StrategyOne.Signal.HOLD;
         }
@@ -41,6 +42,7 @@ public class StrategyManager {
 
         // Reset the buffer for this symbol to begin collecting the next set
         tickBufferMap.put(symbolId, new ArrayList<>());
+        System.out.println("evaluate Signal entered");
 
         // Evaluate and return the signal using the aggregated Tick
         return StrategyOne.evaluateSignal(aggregatedTick);

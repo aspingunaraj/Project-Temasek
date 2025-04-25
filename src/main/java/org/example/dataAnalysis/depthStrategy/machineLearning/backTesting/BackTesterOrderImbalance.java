@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.*;
 import static org.example.dataAnalysis.depthStrategy.machineLearning.backTesting.BackTesterUtility.*;
 
-public class BackTester {
+public class BackTesterOrderImbalance {
 
     private static final List<Integer> SYMBOL_IDS = Arrays.asList(
             1624, 2475, 3499, 3787, 4668, 4717, 10666, 10794, 14977, 18143);
