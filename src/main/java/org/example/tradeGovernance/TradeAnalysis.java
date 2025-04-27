@@ -4,6 +4,8 @@ import org.example.Main;
 import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.tradeGovernance.model.Order;
 import org.example.tradeGovernance.model.Position;
+import org.example.websocket.model.Tick;
+
 import java.util.Comparator;
 
 
@@ -83,81 +85,88 @@ public class TradeAnalysis {
             List<Position> positions,
             List<Order> orders,
             double stopLossPercent,
-            double targetPercent
+            double targetPercent,
+            Tick tick
     ) {
-        System.out.println("🔍 Evaluating open positions for PnL...");
+        System.out.println("🔍 Evaluating PnL for Tick SecurityId: " + tick.getSecurityId());
 
-        // 🔧 Instantiate OrderServices to place exit orders and check pending state
         OrderServices orderServices = new OrderServices();
+        String tickSecurityId = String.valueOf(tick.getSecurityId()); // Tick security ID
+        double ltp = tick.getLastTradedPrice();
 
-        for (Position position : positions) {
-            // 🚫 Skip if no open position
-            if (position.getNet_qty() == 0) continue;
+        // 🔍 Find the matching open position for the tick's security ID
+        Position matchingPosition = positions.stream()
+                .filter(position -> position.getSecurity_id().equals(tickSecurityId))
+                .filter(position -> position.getNet_qty() != 0) // Only open positions
+                .filter(position -> "I".equalsIgnoreCase(position.getProduct())) // Only Intraday positions
+                .findFirst()
+                .orElse(null);
 
-            String securityId = position.getSecurity_id();
-            double ltp = position.getLast_traded_price();
-            int netQty = position.getNet_qty();
+        if (matchingPosition == null) {
+            System.out.println("⚠️ No open position found for SecurityId: " + tickSecurityId);
+            return;
+        }
 
-            // ❌ Skip if there's already a pending order for the symbol
-            if (orderServices.hasPendingOrderForSymbol(securityId)) {
-                System.out.println("⏳ Pending order exists for " + securityId + ". Skipping PnL exit evaluation.");
-                continue;
+        int netQty = matchingPosition.getNet_qty();
+
+        // ❌ Skip if there's already a pending order for this symbol
+        if (orderServices.hasPendingOrderForSymbol(tickSecurityId)) {
+            System.out.println("⏳ Pending order exists for " + tickSecurityId + ". Skipping PnL exit evaluation.");
+            return;
+        }
+
+        // 🧾 Filter completed orders for this securityId
+        List<Order> completedOrders = orders.stream()
+                .filter(order -> order.getSecurityId().equals(tickSecurityId))
+                .filter(order -> {
+                    String status = order.getDisplayStatus();
+                    return status != null &&
+                            (status.equalsIgnoreCase("Completed") || status.equalsIgnoreCase("Successful"));
+                })
+                .sorted(Comparator.comparing(Order::getOrderDateTime).reversed()) // Latest first
+                .collect(Collectors.toList());
+
+        if (completedOrders.isEmpty()) {
+            System.out.println("⚠️ No completed orders found for SecurityId: " + tickSecurityId);
+            return;
+        }
+
+        Order latestCompletedOrder = completedOrders.get(0);
+        double avgTradedPrice = latestCompletedOrder.getAvgTradedPrice();
+
+        // 📈 Compute price thresholds
+        double upperLimit = avgTradedPrice * (1 + (targetPercent / 100));
+        double lowerLimit = avgTradedPrice * (1 - (stopLossPercent / 100));
+
+        System.out.printf("📘 %s | Position: %d | AvgPrice: %.2f | LTP: %.2f | Target: %.2f | SL: %.2f%n",
+                tickSecurityId, netQty, avgTradedPrice, ltp, upperLimit, lowerLimit);
+
+        // 🟢 Long Position
+        if (netQty > 0) {
+            if (ltp >= upperLimit) {
+                System.out.println("🎯 Target reached for " + tickSecurityId + ". Placing exit SELL order.");
+                orderServices.placeExitOrder(tickSecurityId, "S", netQty);
+            } else if (ltp <= lowerLimit) {
+                System.out.println("🛑 Stop-loss hit for " + tickSecurityId + ". Placing exit SELL order.");
+                orderServices.placeExitOrder(tickSecurityId, "S", netQty);
+            } else {
+                System.out.println("📊 Within range for long. Monitoring continues.");
             }
-
-            // 🧾 Filter completed orders for the same symbol
-            List<Order> completedOrders = orders.stream()
-                    .filter(order -> order.getSecurityId().equals(securityId))
-                    .filter(order -> {
-                        String status = order.getDisplayStatus();
-                        return status != null &&
-                                (status.equalsIgnoreCase("Completed") || status.equalsIgnoreCase("Successful"));
-                    })
-                    .sorted(Comparator.comparing(Order::getOrderDateTime).reversed()) // Latest first
-                    .collect(Collectors.toList());
-
-            // 🚫 If no completed order exists, skip evaluation
-            if (completedOrders.isEmpty()) {
-                System.out.println("⚠️ No completed order found for " + securityId + " → Skipping...");
-                continue;
-            }
-
-            Order latestCompletedOrder = completedOrders.get(0);
-            double avgTradedPrice = latestCompletedOrder.getAvgTradedPrice();
-
-            // 📈 Compute limits
-            double upperLimit = avgTradedPrice * (1 + (targetPercent / 100));
-            double lowerLimit = avgTradedPrice * (1 - (stopLossPercent / 100));
-
-            System.out.println("📘 " + securityId + " | Position: " + netQty +
-                    " | AvgPrice: " + avgTradedPrice + " | LTP: " + ltp);
-
-            // 🟢 Long Position Logic
-            if (netQty > 0) {
-                if (ltp >= upperLimit) {
-                    System.out.println("🎯 Target reached for " + securityId + ". Placing exit SELL order.");
-                    orderServices.placeExitOrder(securityId, "S", netQty);
-                } else if (ltp <= lowerLimit) {
-                    System.out.println("🛑 Stop-loss hit for " + securityId + ". Placing exit SELL order.");
-                    orderServices.placeExitOrder(securityId, "S", netQty);
-                } else {
-                    System.out.println("📊 Within range. Monitoring continues.");
-                }
-            }
-
-            // 🔴 Short Position Logic
-            else {
-                if (ltp <= lowerLimit) {
-                    System.out.println("🎯 Target reached for short " + securityId + ". Placing exit BUY order.");
-                    orderServices.placeExitOrder(securityId, "B", Math.abs(netQty));
-                } else if (ltp >= upperLimit) {
-                    System.out.println("🛑 Stop-loss hit for short " + securityId + ". Placing exit BUY order.");
-                    orderServices.placeExitOrder(securityId, "B", Math.abs(netQty));
-                } else {
-                    System.out.println("📊 Within range for short. Monitoring continues.");
-                }
+        }
+        // 🔴 Short Position
+        else {
+            if (ltp <= lowerLimit) {
+                System.out.println("🎯 Target reached for short " + tickSecurityId + ". Placing exit BUY order.");
+                orderServices.placeExitOrder(tickSecurityId, "B", Math.abs(netQty));
+            } else if (ltp >= upperLimit) {
+                System.out.println("🛑 Stop-loss hit for short " + tickSecurityId + ". Placing exit BUY order.");
+                orderServices.placeExitOrder(tickSecurityId, "B", Math.abs(netQty));
+            } else {
+                System.out.println("📊 Within range for short. Monitoring continues.");
             }
         }
     }
+
 
 
     /**

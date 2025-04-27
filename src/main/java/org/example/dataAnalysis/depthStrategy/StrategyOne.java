@@ -22,6 +22,7 @@ public class StrategyOne {
         double imbalance = calculateOBImbalance(tick);
         double openPrice = tick.getOpen();
         double closePrice = tick.getClose();
+        System.out.println(imbalance);
 
         if (imbalance >= IMBALANCE_THRESHOLD && closePrice > openPrice) {
             System.out.println("Buy Signal");

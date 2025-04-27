@@ -125,10 +125,15 @@ public class WebSocketService {
         List<Tick> recentTicks = historyManager.getTickHistory(symbolId);
         StrategyOne.Signal signal = StrategyManager.strategySelector(tick, symbolId);
 
+
         TradeAnalysis.Action action = new TradeAnalysis().evaluateTradeAction(symbolId, signal, Main.accessToken);
 
         if (action == TradeAnalysis.Action.BUY || action == TradeAnalysis.Action.SELL) {
             new OrderServices().orderManagement(String.valueOf(symbolId), action, tick.getLastTradedPrice());
+        }
+        if (Main.latestOrderBook != null && Main.latestOrderBook.getData() != null) {
+            TradeAnalysis.evaluatePnLForOpenPositions(Main.currentPositions, Main.latestOrderBook.getData(),
+                    0.2,0.4,tick);
         }
     }
 

@@ -68,9 +68,7 @@ public class Main {
                 if (freshPositions != null) {
                     currentPositions.clear();
                     currentPositions.addAll(freshPositions);
-                    if (latestOrderBook != null && latestOrderBook.getData() != null) {
-                        TradeAnalysis.evaluatePnLForOpenPositions(currentPositions, latestOrderBook.getData(),0.2,0.4);
-                    }
+
                 }
             }
         } catch (Exception e) {
