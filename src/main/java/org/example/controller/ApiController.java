@@ -5,7 +5,11 @@ import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.websocket.WebSocketService;
 import org.example.websocket.model.StrategySummary;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -176,25 +180,24 @@ public class ApiController {
 
     @GetMapping("/api/read-compressed-ticks")
     @ResponseBody
-    public ResponseEntity<String> readCompressedFile() {
+    public ResponseEntity<Resource> downloadCompressedFile() {
         Path path = Paths.get("src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl.gz");
 
-        try (GZIPInputStream gis = new GZIPInputStream(Files.newInputStream(path));
-             BufferedReader reader = new BufferedReader(new InputStreamReader(gis))) {
+        try {
+            // Create resource from file
+            Resource resource = new InputStreamResource(Files.newInputStream(path));
 
-            StringBuilder content = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                content.append(line).append("\n");
-            }
-
-            return ResponseEntity.ok(content.toString());
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"all_ticks.jsonl.gz\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .contentLength(Files.size(path))
+                    .body(resource);
 
         } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to read compressed file: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
 
     @Controller
     public class PageRedirectController {
