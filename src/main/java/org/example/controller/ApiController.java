@@ -5,8 +5,8 @@ import org.example.dataAnalysis.depthStrategy.StrategyOne;
 import org.example.websocket.WebSocketService;
 import org.example.websocket.model.StrategySummary;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -178,19 +178,31 @@ public class ApiController {
         return result;
     }
 
-    @GetMapping("/api/read-compressed-ticks")
+    @GetMapping("/api/download-compressed-ticks")
     @ResponseBody
     public ResponseEntity<Resource> downloadCompressedFile() {
-        Path path = Paths.get("src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl.gz");
+        Path compressedPath = Paths.get("src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl.gz");
 
-        try {
-            // Create resource from file
-            Resource resource = new InputStreamResource(Files.newInputStream(path));
+        try (GZIPInputStream gis = new GZIPInputStream(Files.newInputStream(compressedPath));
+             BufferedReader reader = new BufferedReader(new InputStreamReader(gis))) {
+
+            // Read decompressed content
+            StringBuilder content = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+
+            // Create a temporary file with .json extension
+            Path tempFile = Files.createTempFile("all_ticks_", ".json");
+            Files.write(tempFile, content.toString().getBytes());
+
+            // Prepare the file as a downloadable Resource
+            Resource resource = new UrlResource(tempFile.toUri());
 
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"all_ticks.jsonl.gz\"")
                     .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .contentLength(Files.size(path))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"all_ticks.json\"")
                     .body(resource);
 
         } catch (IOException e) {
