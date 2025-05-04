@@ -17,6 +17,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import java.io.PrintStream;
 import java.time.Instant;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -63,7 +64,7 @@ public class Main {
      */
     @Scheduled(fixedDelay = 2000)
     public void updatePositions() {
-        LocalTime now = LocalTime.now();
+        LocalTime now = LocalTime.now(ZoneId.of("Asia/Kolkata"));
         if (now.isBefore(LocalTime.of(8, 0)) || now.isAfter(LocalTime.of(17, 0))) return;
 
         try {
