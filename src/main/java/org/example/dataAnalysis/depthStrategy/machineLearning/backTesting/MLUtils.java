@@ -1,7 +1,9 @@
 package org.example.dataAnalysis.depthStrategy.machineLearning.backTesting;
 
+import org.example.websocket.model.DepthPacket;
 import org.example.websocket.model.Tick;
 import weka.classifiers.Classifier;
+import weka.classifiers.trees.RandomForest;
 import weka.core.*;
 
 import java.util.*;
@@ -14,42 +16,85 @@ public class MLUtils {
         this.modelType = modelType;
     }
 
-    public Instances createDataset(List<double[]> featureList, List<String> labelList) {
-        ArrayList<Attribute> attributes = new ArrayList<>();
+    // ----- Feature Extraction -----
+    public double[] extractFeatures(Tick tick) {
+        double ltp = tick.getLastTradedPrice();
+        int totalBuyQty = tick.getTotalBuyQuantity();
+        int totalSellQty = tick.getTotalSellQuantity();
 
-        for (int i = 0; i < featureList.get(0).length; i++) {
-            attributes.add(new Attribute("f" + i));
+        // Order Book Imbalance (OBI)
+        double obi = (double)(totalBuyQty - totalSellQty) / (totalBuyQty + totalSellQty + 1e-6);
+
+        // Spread at top of book
+        List<DepthPacket> depthList = tick.getMbpRowPacket();
+        double bestBuyPrice = depthList.get(0).getBuyPrice();
+        double bestSellPrice = depthList.get(0).getSellPrice();
+        double spread = bestSellPrice - bestBuyPrice;
+
+        // Depth skew and pressure (weighted by level)
+        double buyVolume = 0, sellVolume = 0;
+        double weightedBuy = 0, weightedSell = 0;
+        int level = 1;
+
+        for (DepthPacket dp : depthList) {
+            buyVolume += dp.getBuyQuantity();
+            sellVolume += dp.getSellQuantity();
+
+            weightedBuy += dp.getBuyQuantity() / (double) level;
+            weightedSell += dp.getSellQuantity() / (double) level;
+
+            level++;
         }
 
-        ArrayList<String> classValues = new ArrayList<>(Arrays.asList("BUY", "SELL", "HOLD"));
-        attributes.add(new Attribute("class", classValues));
+        double skew = (buyVolume - sellVolume) / (buyVolume + sellVolume + 1e-6);
+        double pressure = weightedBuy / (weightedBuy + weightedSell + 1e-6);
 
-        Instances dataset = new Instances("TickData", attributes, featureList.size());
+        return new double[] {
+                ltp,
+                obi,
+                spread,
+                skew,
+                pressure
+        };
+    }
+
+    // ----- Model Training -----
+    public Classifier trainModel(List<double[]> features, List<String> labels) throws Exception {
+        ArrayList<Attribute> attributes = new ArrayList<>();
+        attributes.add(new Attribute("ltp"));
+        attributes.add(new Attribute("obi"));
+        attributes.add(new Attribute("spread"));
+        attributes.add(new Attribute("skew"));
+        attributes.add(new Attribute("pressure"));
+
+        List<String> classValues = Arrays.asList("BUY", "SELL", "HOLD");
+        attributes.add(new Attribute("label", classValues));
+
+        Instances dataset = new Instances("TickData", attributes, features.size());
         dataset.setClassIndex(attributes.size() - 1);
 
-        for (int i = 0; i < featureList.size(); i++) {
-            double[] vals = new double[attributes.size()];
-            System.arraycopy(featureList.get(i), 0, vals, 0, featureList.get(i).length);
-            vals[vals.length - 1] = classValues.indexOf(labelList.get(i));
-            dataset.add(new DenseInstance(1.0, vals));
+        for (int i = 0; i < features.size(); i++) {
+            double[] instanceValues = Arrays.copyOf(features.get(i), features.get(i).length + 1);
+            instanceValues[instanceValues.length - 1] = classValues.indexOf(labels.get(i));
+            dataset.add(new DenseInstance(1.0, instanceValues));
         }
 
-        return dataset;
+        Classifier classifier = (modelType == ModelSelector.ModelType.RANDOM_FOREST)
+                ? new RandomForest()
+                : ModelSelector.getModel(modelType);
+
+        classifier.buildClassifier(dataset);
+        return classifier;
     }
 
-    public Classifier trainModel(List<double[]> featureList, List<String> labelList) throws Exception {
-        Instances dataset = createDataset(featureList, labelList);
-        Classifier model = ModelSelector.getModel(modelType);
-        model.buildClassifier(dataset);
-        return model;
-    }
-
+    // ----- Prediction with Confidence -----
     public PredictionResult predictWithConfidence(Classifier model, double[] features) throws Exception {
-        Instances dataset = createEmptyDataset(features.length);
-        Instance instance = new DenseInstance(1.0, features);
-        instance.setDataset(dataset);
+        Instances dummy = createEmptyDataset();
+        Instance instance = new DenseInstance(1.0, Arrays.copyOf(features, features.length + 1));
+        dummy.add(instance);
+        dummy.setClassIndex(dummy.numAttributes() - 1);
 
-        double[] distribution = model.distributionForInstance(instance);
+        double[] distribution = model.distributionForInstance(dummy.firstInstance());
         int bestIndex = 0;
         for (int i = 1; i < distribution.length; i++) {
             if (distribution[i] > distribution[bestIndex]) {
@@ -57,39 +102,22 @@ public class MLUtils {
             }
         }
 
-        String predictedLabel = dataset.classAttribute().value(bestIndex);
+        String predictedLabel = dummy.classAttribute().value(bestIndex);
         double confidence = distribution[bestIndex];
 
         return new PredictionResult(predictedLabel, confidence);
     }
 
-    private Instances createEmptyDataset(int featureLength) {
+    private Instances createEmptyDataset() {
         ArrayList<Attribute> attributes = new ArrayList<>();
-        for (int i = 0; i < featureLength; i++) {
-            attributes.add(new Attribute("f" + i));
-        }
-        ArrayList<String> classValues = new ArrayList<>(Arrays.asList("BUY", "SELL", "HOLD"));
-        attributes.add(new Attribute("class", classValues));
-        Instances dataset = new Instances("TickData", attributes, 0);
-        dataset.setClassIndex(attributes.size() - 1);
-        return dataset;
-    }
-
-    public double[] extractFeatures(Tick tick) {
-        double ltp = tick.getLastTradedPrice();
-        double spread = tick.getMbpRowPacket().get(0).getSellPrice() - tick.getMbpRowPacket().get(0).getBuyPrice();
-        double buyQty = tick.getTotalBuyQuantity();
-        double sellQty = tick.getTotalSellQuantity();
-
-        return new double[] {
-                ltp,
-                spread,
-                buyQty,
-                sellQty,
-                tick.getHigh() - tick.getLow(),
-                tick.getOpen() - tick.getClose(),
-                tick.getVolumeTraded()
-        };
+        attributes.add(new Attribute("ltp"));
+        attributes.add(new Attribute("obi"));
+        attributes.add(new Attribute("spread"));
+        attributes.add(new Attribute("skew"));
+        attributes.add(new Attribute("pressure"));
+        List<String> classValues = Arrays.asList("BUY", "SELL", "HOLD");
+        attributes.add(new Attribute("label", classValues));
+        return new Instances("TickData", attributes, 0);
     }
 
     public static class PredictionResult {

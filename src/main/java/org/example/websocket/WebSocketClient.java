@@ -74,7 +74,7 @@ public class WebSocketClient {
 
     // Triggered when a binary message is received from WebSocket
     @OnMessage
-    public void onMessage(ByteBuffer buffer) {
+    public void onMessage(ByteBuffer buffer) throws Exception {
 
         List<Tick> ticks = webSocketParser.parse(buffer); // Parse binary stream into Tick DTOs
         if (onMessageListener != null && !ticks.isEmpty()) {

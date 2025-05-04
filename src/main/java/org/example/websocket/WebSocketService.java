@@ -38,7 +38,13 @@ public class WebSocketService {
             System.out.println("🧪 Starting in Simulation Mode");
 
             SimulatedTickServer streamer = new SimulatedTickServer(tick ->
-                    processTick(tick, DepthPacketHistoryManager.getInstance()));
+            {
+                try {
+                    processTick(tick, DepthPacketHistoryManager.getInstance());
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
 
             simulatedThread = new Thread(streamer::startStreaming);
             simulatedThread.start();
@@ -106,7 +112,7 @@ public class WebSocketService {
         }
     }
 
-    private void processTick(Tick tick, DepthPacketHistoryManager historyManager) {
+    private void processTick(Tick tick, DepthPacketHistoryManager historyManager) throws Exception {
         int symbolId = tick.getSecurityId();
 
         if (tick.getMbpRowPacket() != null && !tick.getMbpRowPacket().isEmpty()) {
@@ -140,7 +146,7 @@ public class WebSocketService {
     private static final String TICK_FILE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl";
     private static final ObjectMapper mapper = new ObjectMapper()
             .disable(SerializationFeature.INDENT_OUTPUT); // compact JSON
-    private static final String COMPRESSED_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl.gz";
+    private static final String COMPRESSED_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/marketdata.jsonl.gz";
 
     private static final long MAX_COMPRESSED_FILE_SIZE_BYTES = 50L * 1024 * 1024; // 50 MB
 

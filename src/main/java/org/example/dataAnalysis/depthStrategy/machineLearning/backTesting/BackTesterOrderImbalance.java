@@ -8,7 +8,7 @@ import static org.example.dataAnalysis.depthStrategy.machineLearning.backTesting
 public class BackTesterOrderImbalance {
 
     private static final List<Integer> SYMBOL_IDS = Arrays.asList(
-            1624, 2475, 3499, 3787, 4668, 4717, 10666, 10794, 14977, 18143);
+            1624, 3499, 3787, 4668, 4717, 10666, 10794, 14977, 18143);
     private static final String BASE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/compressedTickDump_";
 
     private static final int AGGREGATION_WINDOW = 10;
