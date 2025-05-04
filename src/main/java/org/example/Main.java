@@ -49,7 +49,7 @@ public class Main {
         System.setOut(new WebSocketLogRedirector());
         System.setErr(new WebSocketLogRedirector());
 
-        System.out.println("🚀 Application Started");
+        System.out.println("🚀 Application Starteds");
         System.out.println("🚀 Backend started and log streaming is active");
         TokenInfo saved = new TokenStorageService().loadTokens();
         if (saved != null) {
