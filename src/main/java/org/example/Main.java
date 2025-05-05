@@ -16,8 +16,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import java.io.PrintStream;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -49,7 +47,7 @@ public class Main {
         System.setOut(new WebSocketLogRedirector());
         System.setErr(new WebSocketLogRedirector());
 
-        System.out.println("🚀 Application Starteds");
+        System.out.println("🚀 Application Started");
         System.out.println("🚀 Backend started and log streaming is active");
         TokenInfo saved = new TokenStorageService().loadTokens();
         if (saved != null) {
@@ -60,19 +58,17 @@ public class Main {
     }
 
     /**
-     * 🔁 Refreshes the global position list every 2 seconds between 8 AM and 5 PM IST.
+     * 🔁 Refreshes the global position list every 2 seconds.
      */
     @Scheduled(fixedDelay = 2000)
     public void updatePositions() {
-        LocalTime now = LocalTime.now(ZoneId.of("Asia/Kolkata"));
-        if (now.isBefore(LocalTime.of(8, 0)) || now.isAfter(LocalTime.of(17, 0))) return;
-
         try {
             if (accessToken != null && !accessToken.isEmpty()) {
                 List<Position> freshPositions = positionServices.getPositions(accessToken);
                 if (freshPositions != null) {
                     currentPositions.clear();
                     currentPositions.addAll(freshPositions);
+
                 }
             }
         } catch (Exception e) {
@@ -81,13 +77,10 @@ public class Main {
     }
 
     /**
-     * 📘 Refreshes the global order book every 2 seconds between 8 AM and 5 PM IST.
+     * 📘 Refreshes the global order book every 2 seconds.
      */
     @Scheduled(fixedDelay = 2000)
     public void updateOrderBook() {
-        LocalTime now = LocalTime.now();
-        if (now.isBefore(LocalTime.of(8, 0)) || now.isAfter(LocalTime.of(17, 0))) return;
-
         try {
             if (accessToken != null && !accessToken.isEmpty()) {
                 OrderBookResponse response = orderServices.getOrderBook(accessToken);
@@ -108,4 +101,11 @@ public class Main {
         TradeAnalysis tradeAnalysis = new TradeAnalysis();
         tradeAnalysis.squareOffAllOpenPositions();
     }
+
+
+
+
+
+
+
 }

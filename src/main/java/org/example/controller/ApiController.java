@@ -181,7 +181,7 @@ public class ApiController {
     @GetMapping("/api/download-compressed-ticks")
     @ResponseBody
     public ResponseEntity<Resource> downloadCompressedFile() {
-        Path compressedPath = Paths.get("src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/all_ticks.jsonl.gz");
+        Path compressedPath = Paths.get("src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/marketdata.jsonl.gz");
 
         try (GZIPInputStream gis = new GZIPInputStream(Files.newInputStream(compressedPath));
              BufferedReader reader = new BufferedReader(new InputStreamReader(gis))) {
