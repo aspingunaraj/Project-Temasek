@@ -22,7 +22,7 @@ public class StrategyTwo {
     private static final int RETRAIN_INTERVAL = 20; // Retrain after every 20 new samples
     private static final double MIN_CONFIDENCE_THRESHOLD = 0.6; // Minimum confidence required to act on a signal
     private static final int MAX_DATA_SIZE = 200; // Max size of training data buffer per symbol
-    private static final int LOOKAHEAD_SECONDS = 6000; // Time to wait before labeling a tick based on price change
+    private static final int LOOKAHEAD_SECONDS = 600; // Time to wait before labeling a tick based on price change
     private static final double TARGET_THRESHOLD = 0.004; // 0.4% price increase to label BUY
     private static final double STOPLOSS_THRESHOLD = 0.004; // 0.2% price drop to label SELL
 
