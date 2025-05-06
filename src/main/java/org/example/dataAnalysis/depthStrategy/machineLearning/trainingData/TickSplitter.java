@@ -39,7 +39,7 @@ public class TickSplitter {
                 long lastTradedTimeEpoch = node.get("lastTradedTime").asLong();
                 LocalDate tickDate = Instant.ofEpochSecond(lastTradedTimeEpoch).atZone(ZONE_ID).toLocalDate();
 
-                if (!tickDate.equals(TARGET_DATE)) {
+                if (tickDate.equals(TARGET_DATE)) {
                     continue; // skip if not 2025-04-29
                 }
 

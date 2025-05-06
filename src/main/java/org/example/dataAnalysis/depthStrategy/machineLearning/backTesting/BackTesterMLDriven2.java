@@ -1,21 +1,23 @@
-// Updated BackTesterMLDriven.java with Exit Reasons and Symbol-wise Models
 package org.example.dataAnalysis.depthStrategy.machineLearning.backTesting;
 
 import org.example.websocket.model.Tick;
 import weka.classifiers.Classifier;
+import weka.core.SerializationHelper;
 
-import java.util.*;
+import java.io.File;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 import static org.example.dataAnalysis.depthStrategy.machineLearning.backTesting.BackTesterUtility.*;
 
-public class BackTesterMLDriven {
+public class BackTesterMLDriven2 {
 
     private static final List<Integer> SYMBOL_IDS = Arrays.asList(
             1406,1624,2475,3499,3787,4668,4717,5097,10666,10794,11630,14977,18143,27066);
     private static final String BASE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/compressedTickDump_";
+    private static final String MODEL_DIR = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/";
 
     private static final int AGGREGATION_WINDOW = 10;
     private static final int INITIAL_TRAINING_SIZE = 50;
@@ -147,6 +149,10 @@ public class BackTesterMLDriven {
                     position = null; entryPrice = 0; entryTick = null; entryTime = 0;
                 }
             }
+
+            // Save the final trained model for the symbol
+            String modelPath = MODEL_DIR + "model_" + symbolId + ".model";
+            SerializationHelper.write(modelPath, model);
 
             grandTotalTrades += trades;
             grandWins += wins;

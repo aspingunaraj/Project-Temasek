@@ -1,27 +1,25 @@
-// Updated BackTesterMLDriven.java with Exit Reasons and Symbol-wise Models
 package org.example.dataAnalysis.depthStrategy.machineLearning.backTesting;
 
 import org.example.websocket.model.Tick;
 import weka.classifiers.Classifier;
+import weka.core.SerializationHelper;
 
-import java.util.*;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
 
 import static org.example.dataAnalysis.depthStrategy.machineLearning.backTesting.BackTesterUtility.*;
 
-public class BackTesterMLDriven {
+public class BackTesterMLDriven3 {
 
+    //1406,1624,2475,3499,3787,4668,4717,5097,10666,10794,11630,14977,18143,27066
     private static final List<Integer> SYMBOL_IDS = Arrays.asList(
-            1406,1624,2475,3499,3787,4668,4717,5097,10666,10794,11630,14977,18143,27066);
+            1406,1624,2475,3499,3787,4668,4717,5097,10666,10794,11630,14977,18143,27066 );
     private static final String BASE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/compressedTickDump_";
+    private static final String MODEL_DIR = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/";
 
     private static final int AGGREGATION_WINDOW = 10;
-    private static final int INITIAL_TRAINING_SIZE = 50;
-    private static final int RETRAIN_INTERVAL = 20;
-    private static final int LOOKAHEAD_TICKS = 100;
-    private static final double TARGET_MOVE_THRESHOLD = 0.005;
     private static final double MIN_CONFIDENCE_THRESHOLD = 0.6;
     private static final double TARGET_PROFIT_PERCENT = 0.008;
     private static final double STOP_LOSS_PERCENT = 0.004;
@@ -30,66 +28,51 @@ public class BackTesterMLDriven {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneId.of("Asia/Kolkata"));
 
     public static void main(String[] args) throws Exception {
-
         int grandTotalTrades = 0, grandWins = 0, grandLosses = 0;
         double grandTotalPnL = 0;
 
         for (int symbolId : SYMBOL_IDS) {
             String filePath = BASE_PATH + symbolId + ".json";
+            String modelPath = MODEL_DIR + "model_" + symbolId + ".model";
+
+            // Load model
+            Classifier model;
+            try {
+                model = (Classifier) SerializationHelper.read(modelPath);
+            } catch (Exception e) {
+                System.out.println("❌ Model not found or error for symbol " + symbolId + ": " + e.getMessage());
+                continue;
+            }
+
             List<Tick> rawTicks = loadTicks(filePath);
             List<Tick> compressedTicks = new ArrayList<>();
-
             for (int i = 0; i <= rawTicks.size() - AGGREGATION_WINDOW; i += AGGREGATION_WINDOW) {
                 compressedTicks.add(aggregateTicks(rawTicks.subList(i, i + AGGREGATION_WINDOW)));
             }
 
-            if (compressedTicks.size() < INITIAL_TRAINING_SIZE + LOOKAHEAD_TICKS) {
-                System.out.println("Not enough data for symbol " + symbolId + ". Skipping.");
+            if (compressedTicks.size() < 100) {
+                System.out.println("Not enough compressed data for symbol " + symbolId + ". Skipping.");
                 continue;
             }
 
             MLUtils mlUtils = new MLUtils(ModelSelector.ModelType.RANDOM_FOREST);
-            List<double[]> featureList = new ArrayList<>();
-            List<String> labelList = new ArrayList<>();
 
-            Classifier model = null;
             Tick entryTick = null;
             double entryPrice = 0;
             long entryTime = 0;
             String position = null;
-            int retrainCounter = 0;
 
-            int wins = 0, losses = 0, trades = 0;
+            int trades = 0, wins = 0, losses = 0;
             double totalPnL = 0;
 
-            for (int i = 0; i < compressedTicks.size() - LOOKAHEAD_TICKS; i++) {
-                Tick tick = compressedTicks.get(i);
+            for (Tick tick : compressedTicks) {
                 double[] features = mlUtils.extractFeatures(tick);
+                MLUtils.PredictionResult result = mlUtils.predictWithConfidence(model, features);
 
-                double futurePrice = compressedTicks.get(i + LOOKAHEAD_TICKS).getLastTradedPrice();
-                double currentPrice = tick.getLastTradedPrice();
-                double move = (futurePrice - currentPrice) / currentPrice;
+                if (result.confidence < MIN_CONFIDENCE_THRESHOLD) continue;
 
-                String label = move > TARGET_MOVE_THRESHOLD ? "BUY" : move < -TARGET_MOVE_THRESHOLD ? "SELL" : "HOLD";
-                featureList.add(features);
-                labelList.add(label);
-                if (featureList.size() > 200) {
-                    featureList.remove(0);
-                    labelList.remove(0);
-                }
+                String prediction = result.label;
 
-                if (featureList.size() < INITIAL_TRAINING_SIZE) continue;
-
-                if (model == null || retrainCounter >= RETRAIN_INTERVAL) {
-                    model = mlUtils.trainModel(featureList, labelList);
-                    retrainCounter = 0;
-                }
-                retrainCounter++;
-
-                MLUtils.PredictionResult predictionResult = mlUtils.predictWithConfidence(model, features);
-                if (predictionResult.confidence < MIN_CONFIDENCE_THRESHOLD) continue;
-
-                String prediction = predictionResult.label;
                 if (position == null) {
                     if (prediction.equals("BUY")) {
                         position = "LONG";
