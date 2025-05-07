@@ -19,8 +19,14 @@ public class TickSplitter {
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Kolkata");
 
     public static void main(String[] args) {
+
         splitTickFileBySymbolId(INPUT_FILE, OUTPUT_DIR);
-    }
+      /*  mergeTickFiles(
+                OUTPUT_DIR + "all_ticks1.json",
+                OUTPUT_DIR + "all_ticks2.json",
+                OUTPUT_DIR + "all_ticks.json"
+        ); */
+         }
 
     public static void splitTickFileBySymbolId(String inputFile, String outputDirectory) {
         ObjectMapper mapper = new ObjectMapper();
@@ -77,4 +83,31 @@ public class TickSplitter {
             }
         }
     }
+
+    public static void mergeTickFiles(String file1, String file2, String outputFile) {
+        List<String> filesToMerge = Arrays.asList(file1, file2);
+        Path outputPath = Paths.get(outputFile);
+
+        try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            for (String filePath : filesToMerge) {
+                Path path = Paths.get(filePath);
+                try (BufferedReader reader = Files.newBufferedReader(path)) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        if (!line.trim().isEmpty()) {
+                            writer.write(line);
+                            writer.newLine();
+                        }
+                    }
+                }
+            }
+            System.out.println("✅ Merged files into: " + outputFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("❌ Failed to merge files.");
+        }
+    }
+
+
+
 }
