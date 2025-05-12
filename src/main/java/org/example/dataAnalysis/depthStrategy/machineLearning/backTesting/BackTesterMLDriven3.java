@@ -12,12 +12,11 @@ import java.util.*;
 import static org.example.dataAnalysis.depthStrategy.machineLearning.backTesting.BackTesterUtility.*;
 
 public class BackTesterMLDriven3 {
-
-    //1406,1624,2475,3499,3787,4668,4717,5097,10666,10794,11630,14977,18143,27066
+//1406, 1624, 2475, 3499, 3787, 4668, 4717, 5097, 10666, 10794, 11630, 14977, 18143, 27066
     private static final List<Integer> SYMBOL_IDS = Arrays.asList(
-            1406,1624,2475,3499,3787,4668,4717,5097,10666,10794,11630,14977,18143,27066 );
-    private static final String BASE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/compressedTickDump_";
-    private static final String MODEL_DIR = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/";
+        1406, 1624, 2475, 3499, 3787, 4668, 4717, 5097, 10666, 10794, 11630, 14977, 18143, 27066);
+    private static final String BASE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/testingData/compressedTickDump_";
+    private static final String MODEL_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/model_global.model";
 
     private static final int AGGREGATION_WINDOW = 10;
     private static final double MIN_CONFIDENCE_THRESHOLD = 0.6;
@@ -31,18 +30,20 @@ public class BackTesterMLDriven3 {
         int grandTotalTrades = 0, grandWins = 0, grandLosses = 0;
         double grandTotalPnL = 0;
 
+        // ✅ Load the global model once
+        Classifier model;
+        try {
+            model = (Classifier) SerializationHelper.read(MODEL_PATH);
+            System.out.println("✅ Global model loaded from: " + MODEL_PATH);
+        } catch (Exception e) {
+            System.out.println("❌ Failed to load global model: " + e.getMessage());
+            return;
+        }
+
+        MLUtils mlUtils = new MLUtils(ModelSelector.ModelType.RANDOM_FOREST);
+
         for (int symbolId : SYMBOL_IDS) {
             String filePath = BASE_PATH + symbolId + ".json";
-            String modelPath = MODEL_DIR + "model_" + symbolId + ".model";
-
-            // Load model
-            Classifier model;
-            try {
-                model = (Classifier) SerializationHelper.read(modelPath);
-            } catch (Exception e) {
-                System.out.println("❌ Model not found or error for symbol " + symbolId + ": " + e.getMessage());
-                continue;
-            }
 
             List<Tick> rawTicks = loadTicks(filePath);
             List<Tick> compressedTicks = new ArrayList<>();
@@ -54,8 +55,6 @@ public class BackTesterMLDriven3 {
                 System.out.println("Not enough compressed data for symbol " + symbolId + ". Skipping.");
                 continue;
             }
-
-            MLUtils mlUtils = new MLUtils(ModelSelector.ModelType.RANDOM_FOREST);
 
             Tick entryTick = null;
             double entryPrice = 0;

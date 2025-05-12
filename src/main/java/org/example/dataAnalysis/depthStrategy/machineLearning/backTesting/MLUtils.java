@@ -18,54 +18,64 @@ public class MLUtils {
 
     // ----- Feature Extraction -----
     public double[] extractFeatures(Tick tick) {
-        double ltp = tick.getLastTradedPrice();
         int totalBuyQty = tick.getTotalBuyQuantity();
         int totalSellQty = tick.getTotalSellQuantity();
 
         // Order Book Imbalance (OBI)
         double obi = (double)(totalBuyQty - totalSellQty) / (totalBuyQty + totalSellQty + 1e-6);
 
-        // Spread at top of book
+        // Spread and midpoint price
         List<DepthPacket> depthList = tick.getMbpRowPacket();
         double bestBuyPrice = depthList.get(0).getBuyPrice();
         double bestSellPrice = depthList.get(0).getSellPrice();
         double spread = bestSellPrice - bestBuyPrice;
+        double midPrice = (bestBuyPrice + bestSellPrice) / 2.0;
 
-        // Depth skew and pressure (weighted by level)
+        // Depth skew and pressure
         double buyVolume = 0, sellVolume = 0;
         double weightedBuy = 0, weightedSell = 0;
+        double convexity = 0;
         int level = 1;
 
         for (DepthPacket dp : depthList) {
             buyVolume += dp.getBuyQuantity();
             sellVolume += dp.getSellQuantity();
-
             weightedBuy += dp.getBuyQuantity() / (double) level;
             weightedSell += dp.getSellQuantity() / (double) level;
 
+            // convexity = shape of depth curve (optional: use top 3 levels)
+            if (level <= 3) {
+                convexity += (dp.getSellQuantity() - dp.getBuyQuantity()) / (double) level;
+            }
             level++;
         }
 
         double skew = (buyVolume - sellVolume) / (buyVolume + sellVolume + 1e-6);
         double pressure = weightedBuy / (weightedBuy + weightedSell + 1e-6);
+        double depthRatio = buyVolume / (sellVolume + 1e-6);
+        double midPriceDeviation = (tick.getLastTradedPrice() - midPrice) / (midPrice + 1e-6);
 
         return new double[] {
-                ltp,
                 obi,
                 spread,
                 skew,
-                pressure
+                pressure,
+                depthRatio,
+                convexity,
+                midPriceDeviation
         };
     }
 
     // ----- Model Training -----
     public Classifier trainModel(List<double[]> features, List<String> labels) throws Exception {
         ArrayList<Attribute> attributes = new ArrayList<>();
-        attributes.add(new Attribute("ltp"));
         attributes.add(new Attribute("obi"));
         attributes.add(new Attribute("spread"));
         attributes.add(new Attribute("skew"));
         attributes.add(new Attribute("pressure"));
+        attributes.add(new Attribute("depthRatio"));
+        attributes.add(new Attribute("convexity"));
+        attributes.add(new Attribute("midPriceDeviation"));
 
         List<String> classValues = Arrays.asList("BUY", "SELL", "HOLD");
         attributes.add(new Attribute("label", classValues));
@@ -110,11 +120,13 @@ public class MLUtils {
 
     private Instances createEmptyDataset() {
         ArrayList<Attribute> attributes = new ArrayList<>();
-        attributes.add(new Attribute("ltp"));
         attributes.add(new Attribute("obi"));
         attributes.add(new Attribute("spread"));
         attributes.add(new Attribute("skew"));
         attributes.add(new Attribute("pressure"));
+        attributes.add(new Attribute("depthRatio"));
+        attributes.add(new Attribute("convexity"));
+        attributes.add(new Attribute("midPriceDeviation"));
         List<String> classValues = Arrays.asList("BUY", "SELL", "HOLD");
         attributes.add(new Attribute("label", classValues));
         return new Instances("TickData", attributes, 0);
