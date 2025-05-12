@@ -2,6 +2,7 @@ package org.example.controller;
 
 import org.example.config.MarketModeConfig;
 import org.example.dataAnalysis.depthStrategy.StrategyOne;
+import org.example.dataAnalysis.depthStrategy.machineLearning.trainingData.TrainingDataProcessor;
 import org.example.websocket.WebSocketService;
 import org.example.websocket.model.StrategySummary;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -220,6 +221,19 @@ public class ApiController {
         }
     }
 
+
+    @GetMapping("/api/trigger-retraining")
+    @ResponseBody
+    public ResponseEntity<String> triggerRetraining() {
+        try {
+            TrainingDataProcessor.triggerRetraining();
+            return ResponseEntity.ok("✅ Retraining completed successfully.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("❌ Failed to trigger retraining: " + e.getMessage());
+        }
+    }
 
 
 

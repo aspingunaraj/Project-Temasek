@@ -53,7 +53,8 @@ public class TrainingDataProcessor {
         }
     }
 
-    public static void main(String[] args) {
+    public static void triggerRetraining()
+    {
         convertToAllTicksJson();
         splitTicks();
         BackTesterMLDriven2.runBacktest();
