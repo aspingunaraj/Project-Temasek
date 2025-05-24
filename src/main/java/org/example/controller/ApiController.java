@@ -224,7 +224,7 @@ public class ApiController {
 
     @GetMapping("/api/trigger-retraining")
     @ResponseBody
-    public ResponseEntity<String> triggerRetraining() {
+    public  ResponseEntity<String> triggerRetraining() {
         try {
             TrainingDataProcessor.triggerRetraining();
             return ResponseEntity.ok("✅ Retraining completed successfully.");

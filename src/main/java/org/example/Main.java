@@ -18,6 +18,9 @@ import java.io.PrintStream;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @SpringBootApplication
 @EnableScheduling // 🔁 Enables Spring Scheduler
@@ -103,6 +106,30 @@ public class Main {
     }
 
 
+    @Scheduled(fixedRate = 600000) // Check every 600 seconds
+    public void checkMarketDataFileSizeAndTriggerRetraining() {
+        try {
+            Path filePath = Paths.get("src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/marketdata.jsonl.gz");
+
+            if (Files.exists(filePath)) {
+                long sizeInBytes = Files.size(filePath);
+                long sizeInMB = sizeInBytes / (1024 * 1024);
+
+                if (sizeInMB >= 48) {
+                    System.out.println("📦 File size = " + sizeInMB + "MB. Triggering retraining...");
+
+                    org.example.dataAnalysis.depthStrategy.machineLearning.trainingData.TrainingDataProcessor.triggerRetraining();
+                    System.out.println("✅ Retraining successfully triggered due to file size threshold.");
+                } else {
+                    System.out.println("📏 File size = " + sizeInMB + "MB. Retraining not required.");
+                }
+            } else {
+                System.out.println("⚠️ Market data file not found for size check.");
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error while checking file size or triggering retraining: " + e.getMessage());
+        }
+    }
 
 
 

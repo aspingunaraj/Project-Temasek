@@ -13,7 +13,7 @@ import org.example.dataAnalysis.depthStrategy.machineLearning.backTesting.ModelS
 public class StrategyTwo {
 
     private static final String MODEL_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/model_global.model";
-    private static final double MIN_CONFIDENCE_THRESHOLD = 0.6;
+    private static final double MIN_CONFIDENCE_THRESHOLD = 0.5;
 
     private final MLUtils mlUtils = new MLUtils(ModelSelector.ModelType.RANDOM_FOREST);
     private Classifier globalModel;
