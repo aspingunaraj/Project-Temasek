@@ -135,19 +135,19 @@ public class TradeAnalysis {
         double avgTradedPrice = latestCompletedOrder.getAvgTradedPrice();
 
         // 📈 Compute price thresholds
-        double upperLimit = avgTradedPrice * (1 + (targetPercent / 100));
-        double lowerLimit = avgTradedPrice * (1 - (stopLossPercent / 100));
+        double upperLimit = avgTradedPrice * (1 + (stopLossPercent / 100));
+        double lowerLimit = avgTradedPrice * (1 - (targetPercent / 100));
 
         System.out.printf("📘 %s | Position: %d | AvgPrice: %.2f | LTP: %.2f | Target: %.2f | SL: %.2f%n",
-                tickSecurityId, netQty, avgTradedPrice, ltp, upperLimit, lowerLimit);
+                tickSecurityId, netQty, avgTradedPrice, ltp, lowerLimit, upperLimit);
 
         // 🟢 Long Position
         if (netQty > 0) {
-            if (ltp >= upperLimit) {
-                System.out.println("🎯 Target reached for " + tickSecurityId + ". Placing exit SELL order.");
+            if (ltp >= avgTradedPrice * (1 + (targetPercent / 100))) {
+                System.out.println("🎯 Target reached for long " + tickSecurityId + ". Placing exit SELL order.");
                 orderServices.placeExitOrder(tickSecurityId, "S", netQty);
-            } else if (ltp <= lowerLimit) {
-                System.out.println("🛑 Stop-loss hit for " + tickSecurityId + ". Placing exit SELL order.");
+            } else if (ltp <= avgTradedPrice * (1 - (stopLossPercent / 100))) {
+                System.out.println("🛑 Stop-loss hit for long " + tickSecurityId + ". Placing exit SELL order.");
                 orderServices.placeExitOrder(tickSecurityId, "S", netQty);
             } else {
                 System.out.println("📊 Within range for long. Monitoring continues.");
@@ -155,18 +155,17 @@ public class TradeAnalysis {
         }
         // 🔴 Short Position
         else {
-            if (ltp <= lowerLimit) {
-                System.out.println("🎯 Target reached for short " + tickSecurityId + ". Placing exit BUY order.");
-                orderServices.placeExitOrder(tickSecurityId, "B", Math.abs(netQty));
-            } else if (ltp >= upperLimit) {
+            if (ltp >= avgTradedPrice * (1 + (stopLossPercent / 100))) {
                 System.out.println("🛑 Stop-loss hit for short " + tickSecurityId + ". Placing exit BUY order.");
+                orderServices.placeExitOrder(tickSecurityId, "B", Math.abs(netQty));
+            } else if (ltp <= avgTradedPrice * (1 - (targetPercent / 100))) {
+                System.out.println("🎯 Target reached for short " + tickSecurityId + ". Placing exit BUY order.");
                 orderServices.placeExitOrder(tickSecurityId, "B", Math.abs(netQty));
             } else {
                 System.out.println("📊 Within range for short. Monitoring continues.");
             }
         }
     }
-
 
 
     /**
