@@ -18,7 +18,7 @@ public class BackTesterMLDriven2 {
             4973,11538,19084,21401,10576,8080,11006,15032,19543);
     private static final String BASE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/trainingData/compressedTickDump_";
 
-    private static final int AGGREGATION_WINDOW = 10;
+    private static final int AGGREGATION_WINDOW = 1;
     private static final int INITIAL_TRAINING_SIZE = 50;
     private static final int RETRAIN_INTERVAL = 20;
     private static final int LOOKAHEAD_TICKS = 100;
