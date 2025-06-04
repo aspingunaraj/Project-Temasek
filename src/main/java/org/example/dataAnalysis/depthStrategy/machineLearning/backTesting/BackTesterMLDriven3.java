@@ -18,7 +18,7 @@ public class BackTesterMLDriven3 {
     private static final String BASE_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/testingData/compressedTickDump_";
     private static final String MODEL_PATH = "src/main/java/org/example/dataAnalysis/depthStrategy/machineLearning/models/model_global.model";
 
-    private static final int AGGREGATION_WINDOW = 1;
+    private static final int AGGREGATION_WINDOW = 5;
     private static final double MIN_CONFIDENCE_THRESHOLD = 0.6;
     private static final double TARGET_PROFIT_PERCENT = 0.008;
     private static final double STOP_LOSS_PERCENT = 0.004;
