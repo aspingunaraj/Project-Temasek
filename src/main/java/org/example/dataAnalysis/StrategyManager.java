@@ -10,7 +10,7 @@ import static org.example.dataAnalysis.depthStrategy.machineLearning.backTesting
 
 public class StrategyManager {
 
-    private static final int AGGREGATION_WINDOW = 5;
+    private static final int AGGREGATION_WINDOW = 10;
     private static final Map<Integer, List<Tick>> tickBufferMap = new HashMap<>();
 
     // Create a single instance of StrategyTwo
